@@ -12,8 +12,8 @@ condition that dictates RC's discretization turns out to *bound* the bias
 and variance of the resampled merge: reuse radius ∝ 2ⁿ per level is a
 theorem, not a tuning knob.
 
-- **Interactive demo (WebGPU):** [link coming]
-- **Paper preprint:** [arXiv link coming]
+- **Interactive demo (WebGPU):** https://ivanyou028.github.io/reservoir-cascades/webgpu/
+- **Paper preprint:** [10.5281/zenodo.21506521](https://doi.org/10.5281/zenodo.21506521) (arXiv version coming)
 - **Theory notes:** [docs/theory/](docs/theory/) — full statements and proofs
   behind the paper's §5 (GRIS anchoring, integrand-mismatch, variance,
   temporal AR(1) model)
@@ -73,6 +73,6 @@ multi-bounce are milestone M4 (see the paper's discussion section).
             by Resampling Radiance Cascade Merges},
   author = {You, Ivan},
   year   = {2026},
-  note   = {arXiv preprint [id coming]},
+  note   = {Preprint, doi:10.5281/zenodo.21506521},
 }
 ```
