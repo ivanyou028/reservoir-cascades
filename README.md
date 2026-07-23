@@ -56,9 +56,14 @@ python3 -m http.server 8123
 ## Reproducing the paper's numbers
 
 Every number in the paper is regenerable: Table 1 is `eval` over seeds 1–6
-at `--rho {0.25,0.5,1}`; Table 2 adds `--stoch` / `--no-temporal`; Figure 2's
-sweeps are scripted in the lab log (E5–E9). The degenerate-mode selftest is
-the standing guarantee that "vanilla RC" means *exactly* vanilla RC.
+at `--rho {0.25,0.5,1}` (the `vanfix` row is the community bilinear-fix
+baseline, reported by the same command); Table 2 adds `--stoch` /
+`--no-temporal`; Figure 2's sweeps are scripted in the lab log (E5–E9).
+The flat world-space reuse control (Table 3, lab log E16) is
+`scripts/flat_sweep.sh` — 420 runs of the `compare` subcommand at the
+cascade's exact candidate budget — aggregated by `scripts/flat_agg.py`.
+The degenerate-mode selftest is the standing guarantee that "vanilla RC"
+means *exactly* vanilla RC.
 
 ## Status
 

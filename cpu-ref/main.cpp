@@ -3,6 +3,7 @@
 //   rc eval --scene S [--size N] [--frames F] [--seed X] [--no-temporal]
 //           [--ref-rays K] [--outdir D]        renders ref/vanilla/full + metrics
 #include "../core/cascade.h"
+#include "../core/flat.h"
 #include "../core/reference.h"
 #include "../core/restir.h"
 #include "../core/vanilla.h"
@@ -101,8 +102,16 @@ static int eval(int argc, char** argv) {
     prm.boundaryJitter = !flag(argc, argv, "--no-bjitter");
     prm.bjitterBlock = std::atoi(arg(argc, argv, "--bjitter-block", "8").c_str());
     bool stoch = flag(argc, argv, "--stoch");
+    RayCounts rays;
+    RenderHooks rayHooks;
+    rayHooks.rays = &rays;
     Image full = renderReservoirRC(sc, cfg, prm,
-                                   stoch ? RCMode::StochasticRC : RCMode::Full);
+                                   stoch ? RCMode::StochasticRC : RCMode::Full,
+                                   &rayHooks);
+    std::printf("  rays/frame: candidate=%.0f validation=%.0f (+%.1f%%)\n",
+                (double)rays.cand / prm.frames,
+                (double)rays.valid / prm.frames,
+                rays.cand ? 100.0 * rays.valid / rays.cand : 0.0);
     std::snprintf(buf, sizeof buf, "%s/%s_%d_full.ppm", outdir.c_str(),
                   sc.name.c_str(), size);
     full.writePPM(buf);
@@ -110,8 +119,12 @@ static int eval(int argc, char** argv) {
                   sc.name.c_str(), size);
     full.writePFM(buf);
 
+    // vanilla RC + community "bilinear fix" (deterministic, 1 frame)
+    Image vfix = renderReservoirRC(sc, cfg, prm, RCMode::VanillaFix);
+
     report("ref", ref, ref, sc);
     report("vanilla", van, ref, sc);
+    report("vanfix", vfix, ref, sc);
     report(stoch ? "stoch" : "full", full, ref, sc);
     return 0;
 }
@@ -165,7 +178,9 @@ static int s3(int argc, char** argv) {
         series.push_back(maskEnergy(img, mask));
     };
     // Renderer-supplied dirty flag at blink toggles (data-independent).
-    hooks.sceneChanged = [&](int f) { return f > 0 && f % blinkP == 0; };
+    // --no-dirty disables it (measures the ~cap-frames chain-limited turn-on).
+    if (!flag(argc, argv, "--no-dirty"))
+        hooks.sceneChanged = [&](int f) { return f > 0 && f % blinkP == 0; };
     renderReservoirRC(sc, cfg, prm, RCMode::Full, &hooks);
 
     FILE* csv = std::fopen("out/s3_series.csv", "w");
@@ -249,9 +264,120 @@ static int s3(int argc, char** argv) {
     return 0;
 }
 
+// compare (§6): flat world-space reuse vs. cascade at identical candidate
+// budget, through one metric pipeline. Emits a CSV row per run:
+//   scene,mode,radius,k,rho,mcap,seed,leakPct,recPct,mape,frameMape,cand,valid
+// leakPct: shadow-mask excess energy as % of vanilla RC's excess (S1);
+// recPct: room-mask energy as % of reference (S2); frameMape: mean per-frame
+// (pre-averaging) MAPE over the post-burn-in window — the single-frame
+// quality the accumulated MAPE hides.
+static int compare(int argc, char** argv) {
+    std::string scenePath = arg(argc, argv, "--scene", "");
+    if (scenePath.empty()) { std::fprintf(stderr, "--scene required\n"); return 2; }
+    std::string mode = arg(argc, argv, "--mode", "flat"); // flat|cascade
+    int size = std::atoi(arg(argc, argv, "--size", "128").c_str());
+    int frames = std::atoi(arg(argc, argv, "--frames", "128").c_str());
+    int refRays = std::atoi(arg(argc, argv, "--ref-rays", "4096").c_str());
+    uint64_t seed = std::strtoull(arg(argc, argv, "--seed", "1").c_str(), nullptr, 10);
+    std::string outdir = arg(argc, argv, "--outdir", "out");
+    std::string csvPath = arg(argc, argv, "--csv", "");
+    ::mkdir(outdir.c_str(), 0755);
+
+    Scene sc = Scene::load(scenePath, size);
+    char buf[512];
+    std::snprintf(buf, sizeof buf, "%s/%s_%d_ref%d.pfm", outdir.c_str(),
+                  sc.name.c_str(), size, refRays);
+    Image ref;
+    if (!Image::readPFM(buf, ref)) {
+        std::printf("  rendering reference (%d rays/px)...\n", refRays);
+        ref = renderReference(sc, size, refRays);
+        ref.writePFM(buf);
+    }
+    CascadeCfg cfg = CascadeCfg::make(size);
+    Image van = renderVanillaRC(sc, cfg);
+
+    const MaskRect* mShadow = findMask(sc, "shadow");
+    const MaskRect* mRoom = findMask(sc, "room");
+
+    RayCounts rays;
+    int burnIn = frames / 2;
+    double frameMapeSum = 0;
+    int frameMapeCnt = 0;
+    auto onFrame = [&](int f, const Image& img) {
+        if (f < burnIn) return;
+        frameMapeSum += mape(img, ref, nullptr);
+        frameMapeCnt++;
+    };
+
+    FlatParams fp;
+    fp.frames = frames;
+    fp.seed = seed;
+    fp.radius = std::atof(arg(argc, argv, "--radius", "8").c_str());
+    fp.k = std::atoi(arg(argc, argv, "--k", "4").c_str());
+    fp.rho = std::atof(arg(argc, argv, "--rho", "0").c_str());
+    fp.mcap = std::atoi(arg(argc, argv, "--mcap", "8").c_str());
+    fp.bins = std::atoi(arg(argc, argv, "--bins", "0").c_str());
+    fp.temporal = !flag(argc, argv, "--no-temporal");
+
+    Image est;
+    if (mode == "flat") {
+        est = renderFlatReuse(sc, size, fp, &rays, onFrame);
+    } else if (mode == "cascade") {
+        RParams prm;
+        prm.frames = frames;
+        prm.seed = seed;
+        prm.temporal = fp.temporal;
+        prm.rho = fp.rho;
+        RenderHooks hooks;
+        hooks.rays = &rays;
+        hooks.onFrame = onFrame;
+        est = renderReservoirRC(sc, cfg, prm, RCMode::Full, &hooks);
+    } else {
+        std::fprintf(stderr, "unknown --mode %s\n", mode.c_str());
+        return 2;
+    }
+
+    double leakPct = -1, recPct = -1;
+    if (mShadow) {
+        double er = maskEnergy(ref, mShadow), ev = maskEnergy(van, mShadow),
+               ee = maskEnergy(est, mShadow);
+        if (ev - er > 1e-12) leakPct = 100.0 * (ee - er) / (ev - er);
+    }
+    if (mRoom) {
+        double er = maskEnergy(ref, mRoom), ee = maskEnergy(est, mRoom);
+        if (er > 1e-12) recPct = 100.0 * ee / er;
+    }
+    double mapeAll = mape(est, ref, nullptr);
+    double fMape = frameMapeCnt ? frameMapeSum / frameMapeCnt : -1;
+
+    std::printf("[compare] %s mode=%s r=%.0f k=%d rho=%.3f mcap=%d seed=%llu "
+                "bins=%d: leak%%=%.2f rec%%=%.2f mape=%.3f fmape=%.3f "
+                "rays: cand=%.0f/f valid=%.0f/f (+%.1f%%)\n",
+                sc.name.c_str(), mode.c_str(), fp.radius, fp.k, fp.rho,
+                fp.mcap, (unsigned long long)seed, fp.bins,
+                leakPct, recPct, mapeAll, fMape,
+                (double)rays.cand / frames, (double)rays.valid / frames,
+                rays.cand ? 100.0 * rays.valid / rays.cand : 0.0);
+
+    if (!csvPath.empty()) {
+        FILE* csv = std::fopen(csvPath.c_str(), "a");
+        if (csv) {
+            std::fprintf(csv, "%s,%s,%.0f,%d,%.3f,%d,%llu,%.4f,%.4f,%.4f,"
+                         "%.4f,%llu,%llu\n",
+                         sc.name.c_str(), mode.c_str(), fp.radius, fp.k,
+                         fp.rho, fp.mcap, (unsigned long long)seed, leakPct,
+                         recPct, mapeAll, fMape,
+                         (unsigned long long)rays.cand,
+                         (unsigned long long)rays.valid);
+            std::fclose(csv);
+        }
+    }
+    return 0;
+}
+
 int main(int argc, char** argv) {
     if (argc < 2) {
-        std::fprintf(stderr, "usage: rc selftest|eval [options]\n");
+        std::fprintf(stderr, "usage: rc selftest|eval|s3|compare [options]\n");
         return 2;
     }
     if (!std::strcmp(argv[1], "selftest")) {
@@ -262,6 +388,7 @@ int main(int argc, char** argv) {
     }
     if (!std::strcmp(argv[1], "eval")) return eval(argc, argv);
     if (!std::strcmp(argv[1], "s3")) return s3(argc, argv);
+    if (!std::strcmp(argv[1], "compare")) return compare(argc, argv);
     std::fprintf(stderr, "unknown command: %s\n", argv[1]);
     return 2;
 }

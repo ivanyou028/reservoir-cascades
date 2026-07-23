@@ -1,7 +1,8 @@
 CXX      := clang++
 CXXFLAGS := -std=c++17 -O2 -Wall -Wextra
 SRC      := core/scene.cpp core/image.cpp core/vanilla.cpp core/restir.cpp \
-            core/reference.cpp metrics/metrics.cpp cpu-ref/main.cpp
+            core/flat.cpp core/reference.cpp metrics/metrics.cpp \
+            cpu-ref/main.cpp
 HDR      := $(wildcard core/*.h metrics/*.h)
 
 build/rc: $(SRC) $(HDR) | build

@@ -197,14 +197,19 @@ cascade.
 
 (The chain-variance recursion and the windowed-lookup condition, formerly
 listed here, are resolved in [variance.md](variance.md) and
-[lemma-3_2.md](lemma-3_2.md) Prop W respectively.)
+[lemma-3_2.md](lemma-3_2.md) Prop W respectively; the
+unanimity-under-correlation item is resolved in
+[lemma-3_2.md](lemma-3_2.md) §5, Prop V's correlation-robustness bullet —
+the union bound never invokes independence, and the flat-reuse control
+(lab log [E16](../experiments.md)) measures the structural converse:
+unanimity absent ⇒ O(1) ratio bias.)
 
 1. The geometric constant of |A|/|Ω_b| for the axis-aligned grid (a
    computable integral over content depth — would upgrade one order-only
    claim to an exact constant); the leak's ~27–35%≈ε₁ calibration (E5 /
-   E12 configs) stays calibrated.
-2. Unanimity under inter-parent correlation: the union bound over
-   per-parent sliver events is correlation-robust (shared grandparents only
-   *help* unanimity); state this explicitly in Prop V.
-3. Two-component temporal model (switch + AR(1)); inter-level ESS to locate
+   E12 configs) stays calibrated. Partial:
+   [lemma-3_2.md](lemma-3_2.md) §8 now tabulates the worst-case δ′_n
+   chain at the defaults (the |A| bound's driver); the exact
+   content-depth integral stays open.
+2. Two-component temporal model (switch + AR(1)); inter-level ESS to locate
    a* in Lemma T's bracket (variance.md §5).

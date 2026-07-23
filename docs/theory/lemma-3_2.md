@@ -9,8 +9,13 @@
 > light) are defined there and in `scenes/`. "Vanilla" = the deterministic
 > RC baseline. ρ ∈ [0,1] is the validation probability (defined in §5).
 
-Status: v0.1, 2026-07-22. Statements and proof sketches; items marked TODO
-need the full ε-δ treatment for the paper. This document supersedes proposal
+Status: v0.2, 2026-07-23. The ε-δ treatments this document depends on are
+complete — here and in [integrand-mismatch.md](integrand-mismatch.md)
+(v0.2: full Lemma A topology, quantitative shell constants, grazing
+measures from scene primitives, and a pointwise-tight / aggregate-refuted
+resolution of the smooth-case √ε question). New in this revision: Prop J
+(block-jitter formalization, §5b) and the explicit-constants table (§8).
+This document supersedes proposal
 §3.2 where they disagree (notably: the O(1)-bin claim is FALSE under ×4
 angular branching — see Lemma D, §2 — and the E2/E3 empirics are now theory).
 
@@ -71,7 +76,7 @@ handled by the confidence weights.
 
 so the radian shift decays 2⁻ⁿ. In *bin units* at the parent level:
 
-    δ_n := |ω_p − ω_q| / β_{n+1} ≤ ε₀·2⁻ⁿ · B₀4ⁿ⁺¹/(2π) = (2B₀ε₀/π)·2ⁿ
+    δ_n := |ω_p − ω_q| / β_{n+1} ≤ (4/3)ε₀·2⁻ⁿ · B₀4ⁿ⁺¹/(2π) = (8B₀ε₀/3π)·2ⁿ
 
 **δ_n grows 2ⁿ.** Proposal §3.2's "bounded within O(1) angular bins" holds
 only for B_n ∝ 2ⁿ branching; under the standard ×4 branching the shift is
@@ -201,6 +206,19 @@ justifications are both **wrong**, and the correct argument needs a hypothesis.
 with depth), the radiance-weighted probability of
   storing a sample in the O(ε_n) strip is itself O(ε_n), so S is unanimous
   w.p. 1−O(ε_n) and the residual collapses to O(L_max·ε_n) = O(ε_n).
+- *Correlation-robustness.* The unanimity step bounds
+  P(non-unanimous) ≤ P(∃q : stored y_q ∈ penumbra strip)
+  ≤ Σ_q P(y_q ∈ strip) — a union bound, valid under **arbitrary**
+  inter-parent correlation; independence is never invoked. Shared-ancestor
+  correlation (the four parents descending from common grandparent
+  reservoirs) makes stored samples coincide more often, pushing survivor
+  verdicts toward agreement — the bound is conservative there, never
+  violated. Empirical footnote: the flat-reuse control (lab log
+  [E16](../experiments.md)) shows what happens when unanimity is
+  *structurally absent* — validated sharing at a scale-mismatched radius
+  splits the survivor set on O(1) of the domain and the ratio bias becomes
+  O(1); the cascade's ∝2ⁿ radii are exactly the scale at which unanimity
+  holds off O(ε_n) sets.
 
 **Conclusion.** The renorm-before mean bias is O(ε_n) — *contingent on bounded
 radiance* (this hypothesis is load-bearing for the **mean**, not only the
@@ -237,6 +255,46 @@ Kill-after vs renorm-before, in one line: kill-after normalizes over all four
 (weights sum to 1 ⇒ O(ε_n) under bounded radiance). This is why the
 kill-after variant (since removed) lost 16–33% and the current
 renorm-before implementation loses ~2%.
+
+## 5b. Proposition J (block-consistent interval jitter)
+
+Setting: block index β(f) = ⌊f/K⌋; splits ξ_β i.i.d. log-uniform,
+t₀(ξ) = t₀·4^{ξ−1/2}; frame f runs the cascade with split ξ_{β(f)}; at
+every block switch the temporal confidence is hard-reset (M := 0, history
+dropped). This is the boundary-jitter scheme of lab log
+[E9](../experiments.md). Let Ê_f denote frame f's gathered estimator and
+b(ξ) the fixed-split systematic error (the interval-boundary bands of E4,
+the shell/coverage terms of Lemma C / Prop C at split ξ).
+
+(i) **No selection bias from switching.** The reset and all temporal-MIS
+confidence weights are measurable w.r.t. (f, ξ) alone — independent of
+every sample draw. Conditioned on ξ, the weights are deterministic
+constants, so each frame keeps its fixed-split conditional expectation:
+
+    E[ Ê_f | ξ ] = E_split(ξ_{β(f)})[ Ê ].
+
+This is exactly the property candidate-triggered clamps destroy (their m
+depends on the draw; measured +25% bias, E8) and frame-indexed resets
+preserve.
+
+(ii) **Mixture identity.** Averaging frames and taking expectation over ξ,
+
+    E[ accumulated ] = E_ξ [ E_split(ξ)[ Ê ] ] = (split-free mean) + E_ξ[ b(ξ) ],
+
+i.e. the deterministic per-split bands enter only through their ξ-average.
+By Lemma C-avg ([integrand-mismatch.md](integrand-mismatch.md) §4), the
+shell terms of E_ξ[b(ξ)] are O(ε_n) per level with a *universal*
+constant — no transversality assumption; the csc α₀ blow-ups of
+unluckily-tangent fixed splits are averaged away.
+
+(iii) **What is NOT claimed.** E_ξ[b(ξ)] = 0 is not proved; what is proved
+is the O(ε_n) bound on its shell component, and what is measured is the
+fan-energy ratio moving 0.91 → 1.003 under jitter (E9). The deterministic
+band is converted into per-frame variance whose magnitude frame-averaging
+controls — bias→variance made literal, at the price that effective
+temporal depth is capped at the block length K (history drops at
+switches). K is thereby a genuine design dial (boundary-bias
+decorrelation vs. temporal depth), not a nuisance parameter. ∎
 
 ## 6. Theorem (per-level reuse soundness — assembled)
 
@@ -279,23 +337,46 @@ constants (|A|/|Ω_b|, the 27%≈ε₁ leak calibration) remain order-only.
 ## 7. Open problems
 
 Resolved threads live in their own documents: the integrand-mismatch bound
-in [integrand-mismatch.md](integrand-mismatch.md) (Lemma 3.2.I), the GRIS
+in [integrand-mismatch.md](integrand-mismatch.md) (Lemma 3.2.I; v0.2 adds
+the full Lemma A topology, quantitative shell constants, the grazing
+measures from scene primitives, and settles the smooth-case √ε_n both
+ways — pointwise tight by construction, O(ε_n) in aggregate), the GRIS
 correspondence in [gris-anchoring.md](gris-anchoring.md), the variance side
-in [variance.md](variance.md), Prop V/W in §4–§5 above. What remains open:
+in [variance.md](variance.md), Prop V/W in §4–§5 above, block-jitter
+formalization in Prop J (§5b), and the explicit-constants table in §8
+below. What remains open:
 
-1. Grazing-set measure bound (assumption A2) derived from K and curvature
-   bounds; and whether the smooth-obstacle √ε_n exponent (Lemma 3.2.I,
-   Lemma G) is tight.
-2. Temporal penumbra condition: characteristic angular velocity v/r ⇒ a
-   principled M_n schedule; formalize block-jitter unbiasedness (lab log
-   [E9](../experiments.md)) as piecewise-stationary MIS.
-3. Explicit constants for the default discretization (s₀=1, t₀=4, B₀=4):
-   ε₀ = 3√2/8 ≈ 0.53, per-level radian shift ≤ 0.53·2⁻ⁿ; a bin-misalignment
-   table vs n; and the coverage-sliver fraction |A|/|Ω_b| as a computed
-   geometric integral (currently order-only). The ρ=0 leak calibration
-   (~27% no-jitter E5, ~35% jittered-config E12; both ≈ ε₁) stays
-   calibrated, not derived.
-4. Windowed-lookup (Prop W) implementation and its measured cost/benefit —
+1. Temporal penumbra condition: characteristic angular velocity v/r ⇒ a
+   principled M_n schedule (the *static* block-jitter statement is Prop J;
+   the dynamic-scene schedule is a design question, not a correctness gap).
+2. The coverage-sliver fraction |A|/|Ω_b| as a computed geometric integral
+   over content depth (currently order-only; §8 tabulates its worst-case
+   driver δ′_n). The ρ=0 leak calibration (~27% no-jitter E5, ~35%
+   jittered-config E12; both ≈ ε₁) stays calibrated, not derived.
+3. Windowed-lookup (Prop W) implementation and its measured cost/benefit —
    deferred to the 3D version of the method.
-5. Further items in [integrand-mismatch.md](integrand-mismatch.md) §9 and
-   [variance.md](variance.md) §5.
+4. Whether the polygonal-case aggregate log factor
+   ([integrand-mismatch.md](integrand-mismatch.md) Theorem I-b) is
+   removable; further items in its §9 and [variance.md](variance.md) §5.
+
+## 8. Explicit constants at the defaults (s₀=1, t₀=4, B₀=4)
+
+ε₀ = 3√2·s₀/(2t₀) = 3√2/8 ≈ 0.5303. Exact per-level values (not the
+(4/3)ε₀2⁻ⁿ bound), with the shift/misalignment chain evaluated:
+
+| n | t_{n+1} | ε_n (exact) | bound (4/3)ε₀2⁻ⁿ | radian shift ≤ | δ_n (bins) | δ′_n = δ_n(1−1/g_n) |
+|---|---------|-------------|-------------------|----------------|------------|----------------------|
+| 0 | 4       | 0.7071      | 0.7071            | 0.7071         | 1.80       | 1.00                 |
+| 1 | 20      | 0.2828      | 0.3536            | 0.2828         | 2.88       | 1.47                 |
+| 2 | 84      | 0.1347      | 0.1768            | 0.1347         | 5.49       | 2.76                 |
+| 3 | 340     | 0.0665      | 0.0884            | 0.0665         | 10.84      | 5.43                 |
+| 4 | 1364    | 0.0332      | 0.0442            | 0.0332         | 21.66      | 10.83                |
+
+δ_n = ε_n·B_{n+1}/(2π); g_n = √(t_{n+2}/t_{n+1}) → 1−1/g_n ≈ 0.55, 0.51,
+0.503, 0.5007, 0.5002 (reprojection halves the worst case, exactly as
+Prop R states). Σ_{n≥0} ε_n ≈ 1.274 < (8/3)ε₀ ≈ 1.414 < 3ε₀ ≈ 1.591.
+Calibration cross-check (lab log [E3](../experiments.md)): measured raw
+shift ≈ 4 bins at n=3 vs the 10.84 worst case (content sits nearer t_c
+than the interval start); post-reprojection ≈ 2 bins, matching δ′ scaled
+by the same ≈0.37 content factor. The worst-case column is what the
+theorems consume; the measured column is what the implementation sees.

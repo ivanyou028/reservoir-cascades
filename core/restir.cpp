@@ -47,8 +47,11 @@ Image renderReservoirRC(const Scene& scene, const CascadeCfg& cfg,
                         const RenderHooks* hooks) {
     const int N = cfg.levels;
     const bool degen = (mode == RCMode::Degenerate);
+    // VanillaFix is deterministic like Degenerate: one frame, bin-center
+    // rays, no jitter/temporal — only the merge's bin lookup differs.
+    const bool determ = degen || mode == RCMode::VanillaFix;
     const bool useTemporal = prm.temporal && mode == RCMode::Full;
-    const int frames = degen ? 1 : prm.frames;
+    const int frames = determ ? 1 : prm.frames;
     const int burnIn = useTemporal ? frames / 2 : 0;
 
     if (hooks && hooks->probe) {
@@ -79,7 +82,7 @@ Image renderReservoirRC(const Scene& scene, const CascadeCfg& cfg,
         // Only t0 is scaled: probe grids, bins, and indexing are untouched.
         CascadeCfg cfgF = cfg;
         bool splitSwitched = false;
-        if (!degen && prm.boundaryJitter) {
+        if (!determ && prm.boundaryJitter) {
             int block = useTemporal ? std::max(1, prm.bjitterBlock) : 1;
             PCG32 rj(hashCombine(prm.seed, (uint64_t)(f / block) + 0xB007), 17);
             cfgF.t0 = cfg.t0 * std::pow(4.0, rj.uniform() - 0.5);
@@ -96,8 +99,8 @@ Image renderReservoirRC(const Scene& scene, const CascadeCfg& cfg,
                     Vec2 p = cfg.probePos(n, i, j);
                     for (int b = 0; b < B; b++) {
                         size_t k = cfg.index(n, i, j, b);
-                        double xi = 0.5; // degenerate: bin center
-                        if (!degen) {
+                        double xi = 0.5; // deterministic modes: bin center
+                        if (!determ) {
                             PCG32 rng(hashCombine(prm.seed,
                                   hashCombine((uint64_t)f + 1,
                                   hashCombine((uint64_t)n + 1, k))), 7);
@@ -107,6 +110,7 @@ Image renderReservoirRC(const Scene& scene, const CascadeCfg& cfg,
                         c.omega = cfg.binAngle(n, b, xi);
                         Vec2 d{std::cos(c.omega), std::sin(c.omega)};
                         Hit h;
+                        if (hooks && hooks->rays) hooks->rays->cand++;
                         if (sc.intersect(p, d, t0, t1, h)) {
                             c.hit = true;
                             c.y = h.pos;
@@ -152,6 +156,37 @@ Image renderReservoirRC(const Scene& scene, const CascadeCfg& cfg,
                                 for (int cb = 0; cb < 4; cb++) {
                                     size_t kp = cfg.index(n + 1, par.idx[q][0],
                                                           par.idx[q][1], 4 * b + cb);
+                                    childSum += R[n + 1][kp].s.c;
+                                }
+                                acc += childSum * 0.25 * par.beta[q];
+                            }
+                            s.c = cd.cNear + acc;
+                            s.hasY = false;
+                        } else if (mode == RCMode::VanillaFix) {
+                            // Vanilla RC + "bilinear fix": value-passing merge
+                            // (β stays an assertion), but each parent consults
+                            // the bin that its own reprojected direction lands
+                            // in. Fixes the ×4 parallax misalignment
+                            // (Lemma shift) while keeping every other vanilla
+                            // bias — isolates how much of vanilla's error is
+                            // mere misalignment vs. the merge semantics.
+                            double tRep = std::sqrt(cfg.intervalStart(n + 1) *
+                                                    cfg.intervalEnd(n + 1));
+                            Vec3 acc;
+                            for (int q = 0; q < 4; q++) {
+                                Vec2 qpos = cfg.probePos(n + 1, par.idx[q][0],
+                                                         par.idx[q][1]);
+                                Vec3 childSum;
+                                for (int cb = 0; cb < 4; cb++) {
+                                    double wcb = cfg.binAngle(n + 1, 4 * b + cb,
+                                                              0.5);
+                                    Vec2 z = p + Vec2{std::cos(wcb),
+                                                      std::sin(wcb)} * tRep;
+                                    Vec2 toZ = z - qpos;
+                                    int bp = cfg.binOf(n + 1,
+                                                std::atan2(toZ.y, toZ.x));
+                                    size_t kp = cfg.index(n + 1, par.idx[q][0],
+                                                          par.idx[q][1], bp);
                                     childSum += R[n + 1][kp].s.c;
                                 }
                                 acc += childSum * 0.25 * par.beta[q];
@@ -242,10 +277,14 @@ Image renderReservoirRC(const Scene& scene, const CascadeCfg& cfg,
                                         double tEnd = dist - std::fmax(1e-3, 1e-3 * dist);
                                         double tBeg = cfgF.intervalEnd(n) * 0.999;
                                         Hit h;
-                                        if (dist > 1e-9 && tEnd > tBeg &&
-                                            sc.intersect(p, dir * (1.0 / dist),
-                                                            tBeg, tEnd, h))
-                                            valid[q] = false;
+                                        if (dist > 1e-9 && tEnd > tBeg) {
+                                            if (hooks && hooks->rays)
+                                                hooks->rays->valid++;
+                                            if (sc.intersect(p,
+                                                    dir * (1.0 / dist),
+                                                    tBeg, tEnd, h))
+                                                valid[q] = false;
+                                        }
                                     }
                                 }
                                 if (valid[q]) betaValidSum += par.beta[q];

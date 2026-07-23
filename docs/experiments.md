@@ -295,6 +295,102 @@ Log-log fit of flicker vs (1+cap): exponent ≈ 0.38±0.05 (the AR(1) model
 of [theory/variance.md](theory/variance.md) §4 predicts ½ and the direction
 of every deviation).
 
+## E13 — ρ-dial S2 deficit decomposition (2026-07-23, paper revision)
+
+- Config: S2 256², frames=128, seed 3; pairs (ρ=0, ρ=1) under frozen split
+  and block-8 jitter. Metric: where does the energy that validation removes
+  live? (Differenced renders, fan mask, distance-to-fan-boundary bands.)
+- Validation-removed energy = 5.8% of ref (frozen) / 6.8% (jitter);
+  **66.6% / 63.7% of it within 2 px of the fan's penumbra boundary,
+  85.2% / 83.2% within 4 px** (band areas 18.8% / 36.7%); fan core is
+  validation-neutral (**+0.04%** frozen / +1.07% jitter).
+- Separate ρ-INdependent core deficit −4.4% (frozen split only) = the
+  interval-boundary bias (E4's residual; jitter's job per E9).
+- Conclusion: the ρ-dial's S2 recovery cost is Prop-validation's O(ε)
+  penumbra-set residual, concentrated where S2 stores an O(1) energy
+  fraction (the Assumption-1 stress test, by design) — not an O(1)
+  estimator defect. → paper §5 Prop 3 cross-ref + §6 main results.
+
+## E14 — ray-cost accounting (2026-07-23)
+
+- RayCounts hooks in core/restir.{h,cpp}; eval prints rays/frame.
+  Candidates: 262144/frame at 128² in EVERY mode (= vanilla's budget).
+- Validation shadow rays (the only extra cost of ρ>0; segment-bounded,
+  start t_{n+1}): ρ=0.25 +8.4% (S1) / +13.2% (S2); ρ=0.375 +12.6% / +19.8%;
+  ρ=0.5 +16.7% / +26.4%; ρ=1 +33.4% / +52.8%.
+- ρ=0.375 is the cheapest setting clearing both GO bars (E12: S1 15.8±3.4,
+  S2 96.0±6.0) → "equal-cost" anchor for the paper: both bars cleared at
+  ≤20% extra rays. → §6 cost statement, discussion cost axis.
+
+## E15 — vanilla RC + community "bilinear fix" baseline (2026-07-23)
+
+- RCMode::VanillaFix: deterministic value-passing merge, per-parent
+  per-sub-bin reprojection through t_rep = √(t_{n+1}t_{n+2}) (the same
+  reprojection Full uses for its RIS lookup). Selftest untouched (bit-exact
+  degen ✓). eval now reports a `vanfix` row.
+- S1: leak E(shadow) = 0.01124 = **94.9% of vanilla's** (0.01185);
+  MAPE(all) 1.26 vs 1.44; MAPE(lit) halves (1.14 → 0.64).
+- S2: E(room) = 0.03239 (114% of ref, structure still wrong);
+  MAPE(room) 8.82 vs vanilla 9.87 (ours: 1.11 at ρ=0.5 seed 1).
+- Conclusion: the community fix removes only the *misalignment* component
+  (Lemma-shift's subject — hence lit-region MAPE halves); the leak and the
+  angular-resolution ceiling are *merge-semantics* bias, untouched by
+  realignment and removed by merge-as-RIS. → Table 1 row + related work.
+
+## E16 — Flat world-space reuse control (equal budget, 2026-07-23, paper revision)
+
+- Motivation: the sharpest reviewer question a hierarchical estimator
+  faces — "does the cascade structure itself earn its overhead, or would
+  any world-space reservoir reuse do?" Previously there was no real
+  competing baseline.
+- Implementation: `core/flat.{h,cpp}` + the `rc compare` subcommand +
+  `scripts/flat_sweep.sh` (420 runs: 2 scenes × {cascade ρ∈{0,.25,.5}} ∪
+  {flat r∈{0,2,4,8,16,32} × ρ∈{0,.5,1} × cap∈{8,32}} × 6 seeds ×
+  128 frames). Fairness contract: (a) equal candidate budget
+  (B_flat = 4·levels = 16 at 128² → 262,144 rays/frame, ray-for-ray equal
+  to the cascade); (b) flat inherits our temporal machinery verbatim
+  (immutable-cRef re-evaluation / revival / confidence cap); (c) spatial
+  reuse is standard ReSTIR (disk kernel k=4, reconnection + Jacobian,
+  renormalize-before-select validation) with **per-candidate generalized
+  balance MIS** — the first pass used naive M-weighting, whose darkening
+  bias *masked* the leak (S2 r4 ρ0: 64.7% "recovery" naive → 132.9%
+  over-count under fair MIS); the naive variant was discarded to avoid a
+  strawman baseline.
+- Results (cap 8, 6 seeds; full table in `out/flat_sweep_agg.json` after
+  running the sweep):
+  - r=0 (temporal-only, zero sharing): S1 leak 0 / MAPE 0.061; S2 rec
+    100.4%. At equal ray *count*, per-pixel brute force wins static
+    frame-averaged quality — but every ray is full-length (~24× nominal
+    path budget; free under analytic intersections, not under DDA/BVH),
+    nothing is amortized, and per-frame ≈ accumulated quality (no
+    per-frame win).
+  - Sharing without validation (ρ=0): catastrophic leak — r2 175%,
+    r4 793%, r8 2819%, r16 4305% of vanilla's leaked energy (1.7–43×),
+    worsening monotonically with r and cap.
+  - Sharing + full validation (ρ=1): leak dies, but S2 recovery collapses
+    for r≥4 (r4 59%, r8 27%, r16 16%) — the survivor set splits on O(1)
+    of the domain when the kernel spans a visibility boundary, an O(1)
+    ratio-estimator bias = **measured confirmation of Prop V's unanimity
+    mechanism** (the cascade's ∝2ⁿ radii are exactly the scale at which
+    unanimity holds).
+  - The only flat configs holding both scenes confine sharing to r=2
+    (barely sharing): ρ=1 leak 0 / rec 92.5%, at +64–99% full-length
+    shadow rays; vs cascade ρ=0.5: leak 10.7 / rec 93.5, at +18–28%
+    interval-bounded rays with reuse radii growing to ~23 px at the
+    deepest level.
+  - cap=32 + sharing: **diverges** (S1 r8 leak ~4669× vanilla; MAPE grows
+    exponentially in frame count: 42→145→757→2646 at 16/32/64/128
+    frames). Mechanism: stored contribution weights multiply across
+    frames and random-walk — precisely the pathology the per-level W
+    collapse (§3.5) eliminates, now confirmed by the control.
+- Conclusion: three failure axes (leak / validation collapse / W-chain
+  divergence); flat hits every one, the cascade closes each structurally.
+  Paper: new Table tab:flat + the "Does the cascade earn its structure?"
+  paragraph; related-work world-space paragraph gains the control
+  sentence.
+- Honesty note: equal ray count ≠ equal work (flat rays are full-length);
+  2D analytic scenes hide that gap — stated explicitly in the paper.
+
 ## Go/No-Go tracking (proposal §9; decided at end of M2)
 
 - [x] GO-1 S1 leak < 20% of vanilla: multi-seed **18.0%±1.9%** at ρ=0.25

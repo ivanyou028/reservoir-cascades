@@ -18,7 +18,12 @@ namespace rc {
 // reuse — the equal-ray fair baseline ("jittered vanilla"). Its remaining
 // error is the structural interpolation/factorization bias; comparing against
 // Full at equal frames isolates the merge-as-RIS gain (GO-4 attribution).
-enum class RCMode { Degenerate, Full, StochasticRC };
+// VanillaFix: vanilla RC + the community "bilinear fix" — deterministic
+// value-passing merge, but each parent's consulted bin is chosen by
+// reprojecting each sub-direction through the characteristic far point
+// t_rep = sqrt(t_{n+1}·t_{n+2}) (the same reprojection Full uses for its
+// RIS lookup). The community's standard mitigation, as a baseline.
+enum class RCMode { Degenerate, Full, StochasticRC, VanillaFix };
 
 struct RParams {
     int frames = 64;        // Full: frames rendered (temporal chain or i.i.d.)
@@ -59,6 +64,14 @@ struct TemporalProbe {
     std::vector<std::vector<std::vector<double>>> series; // [level][entry][frame]
 };
 
+// Ray-cost accounting: candidate rays are one per reservoir per frame in
+// every mode (vanilla, stochastic, full); validation shadow rays are the
+// only extra cost of ρ > 0. Feeds the paper's equal-cost statement.
+struct RayCounts {
+    unsigned long long cand = 0;   // Phase-1 interval traces
+    unsigned long long valid = 0;  // ρ-validation shadow tests
+};
+
 struct RenderHooks {
     // Dynamic scenes (S3): scene for frame f. Unset ⇒ static.
     std::function<Scene(int)> sceneAt;
@@ -69,6 +82,7 @@ struct RenderHooks {
     // so MIS stays unbiased, unlike candidate-value-triggered clamps.
     std::function<bool(int)> sceneChanged;
     TemporalProbe* probe = nullptr;
+    RayCounts* rays = nullptr;
 };
 
 Image renderReservoirRC(const Scene& scene, const CascadeCfg& cfg,
