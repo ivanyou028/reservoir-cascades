@@ -24,7 +24,7 @@ struct RParams {
     int frames = 64;        // Full: frames rendered (temporal chain or i.i.d.)
     uint64_t seed = 1;
     bool temporal = true;   // temporal reuse with confidence cap M_n
-    double lambda = 0.05;   // defensive mixing: p̂ = lum(c) + λ (§4 暗部饥饿)
+    double lambda = 0.05;   // defensive mixing: p̂ = lum(c) + λ (§4 dark-region starvation)
     int mcap0 = 8;          // M_n = min(mcap0·2^n, mcapMax)
     int mcapMax = 64;
     double rho = 0.0;       // reconnection validation probability (§3.4); M1: 0

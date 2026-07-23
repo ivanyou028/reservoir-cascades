@@ -49,7 +49,8 @@ bilinear β). ∎
 **Risk #1, quantified:** inter-level correlation moves a* within [Σm², 1] —
 from 4× variance reduction per merge toward none — but *never past 1*:
 correlation slows convergence, it cannot cause divergence. This is the
-rigorous form of the proposal's "性质从方差爆炸降为收敛变慢". The empirical
+rigorous form of the proposal's "downgraded from variance explosion
+to slower convergence". The empirical
 position of a* is measurable via inter-level ESS (future work; the E8
 autocorrelation is the temporal analogue).
 

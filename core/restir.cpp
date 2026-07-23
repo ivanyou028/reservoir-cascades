@@ -198,7 +198,7 @@ Image renderReservoirRC(const Scene& scene, const CascadeCfg& cfg,
                             PCG32 rng(hashCombine(prm.seed,
                                   hashCombine((uint64_t)f + 1,
                                   hashCombine((uint64_t)n + 0x51, k))), 11);
-                            // ρ-validation (§3.4), "记入 MIS" reading: a
+                            // ρ-validation (§3.4), "account for it in MIS" reading: a
                             // blocked candidate leaves the valid proposal set
                             // and β renormalizes over survivors. Kill-after-
                             // select instead DOUBLE-counts visibility — the

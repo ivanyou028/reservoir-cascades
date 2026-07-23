@@ -1,63 +1,83 @@
-# 实验记录
+# Lab notebook — experiments
 
-格式:配置 / seed / 指标 / 结论一行。Go/No-Go 四项判据各有追踪条目(文末)。
+Format per entry: config / seed / metrics / one-line conclusion. The four
+Go/No-Go criteria have tracking items at the end. (Translated from the
+project's working log; section references "proposal §x" point to the
+project's internal proposal document — the paper mirrors their content.)
 
 ---
 
-## E1 — 退化模式回归(§3.6 / §12.2)
+## E1 — Degenerate-mode regression (proposal §3.6 / §12.2)
 
-- 配置:size=128, B0=4, t0=4px, levels=4;degenerate vs 独立手写 vanilla RC
-- 判定:S1、S2 均 **逐 bit 一致**(0/16384 像素差异)。`make test` 常驻回归。
-- 结论:统一框架严格包含 vanilla RC 作为退化情形 ✓。
+- Config: size=128, B0=4, t0=4px, levels=4; degenerate mode vs an
+  independently hand-written vanilla RC.
+- Verdict: S1 and S2 both **bit-exact** (0/16384 pixels differ).
+  `make test` is the standing regression.
+- Conclusion: the unified framework strictly contains vanilla RC as its
+  degenerate case ✓.
 
-## E2 — 验证射线的"二次计数"偏差(理论发现 #1)
+## E2 — The "double counting" bias of validation rays (theory finding #1)
 
-- 现象:kill-after-select 式 ρ-validation(选中样本后验证、失败置零)在
-  penumbra 区系统性丢能量:S1 lit −16%,S2 room −33%(ρ=1)。
-- 仅 level-0 验证 ≈ 全级验证(同样亏损)→ 排除"逐级复利"假说。
-- 机制:级联链本身已把可见性烘进样本存在性(被挡链解析为 c=0,折进 W 统计),
-  naive kill 再乘一次 p 处可见性 ⇒ penumbra ~ v_chain·v_p 而非 v_p。
-- 修复:按立项文档 §4 "记入 MIS" 的正确读法——**选前验证 + β 在有效 proposal
-  集合上重归一**(GRIS domain-of-validity)。全部父候选被挡 ⇒ 0(真 umbra,
-  硬漏光被杀);部分被挡 ⇒ 幸存者继承全部 β 质量(无重复折扣)。
-- 修复后:S1 ρ=1 lit 亏损 16%→2.2%,leak 保持 0。
-- 论文素材:§3.4 需要补一段——validation 的无偏语义在级联结构下不是
-  "乘可见性",而是 proposal 集合的域限制。
+- Symptom: kill-after-select ρ-validation (validate the selected sample,
+  zero it on failure) systematically loses energy in penumbra regions:
+  S1 lit −16%, S2 room −33% (at ρ=1).
+- Level-0-only validation ≈ all-level validation (same deficit) → rules out
+  the "per-level compounding" hypothesis.
+- Mechanism: the cascade chain already bakes visibility into sample
+  *existence* (blocked chains resolve to c=0, folded into the W statistics);
+  a naive kill multiplies in p's visibility a second time ⇒ penumbra scales
+  like v_chain·v_p instead of v_p.
+- Fix: the correct reading of the proposal's "account for it in MIS" —
+  **validate before selecting + renormalize β over the surviving proposal
+  set**. All four parents blocked ⇒ 0 (true umbra; hard leaks die); some
+  blocked ⇒ survivors inherit the full β mass (no double discount).
+- After the fix: S1 ρ=1 lit deficit 16% → 2.2%, leak stays 0.
+- Paper material: validation's unbiasedness semantics in a cascade are not
+  "multiply by visibility" but a domain restriction of the proposal set.
 
-## E3 — 视差 bin 失配(理论发现 #2,推翻 §3.2 的一个假设)
+## E3 — Parallax bin misalignment (theory finding #2; overturns an assumption of proposal §3.2)
 
-- 现象:S2 扇形内列条纹(0.4–1.3×),即便 ρ=0、无时域。
-- 机制:文档 §4 的 `b' = childBin(s.ω)` 对所有 4 个父探针用同一个 bin。
-  但在 (s×2, B×4, t×4) 标度下,父探针视差带来的方向偏移按 **bin 单位**
-  增长 ~2^n(level 3 ≈ 4 bins)——§3.2 "方向偏移被界在 O(1) 个角 bin 内"
-  的论断对该离散化**不成立**(rad 单位下成立,bin 单位下不成立,因为
-  bin 宽度按 4^n 收缩快于视差按 2^n 收缩)。Vanilla RC 靠 4-子-bin 平均
-  + bilinear 模糊掩盖了这一点;RIS 单 bin 抽取会拉到全黑的错位 bin。
-- 修复:**逐父探针重投影选 bin**(RC 社区 bilinear-fix 的 RIS 版):
-  z = p + ω·t_rep(t_rep = 父区间几何均值 √(start·end)),
-  bp_q = binOf(n+1, dir(q→z))。
-- 修复后:S1 ρ=1 lit 97.8%;S2 条纹减弱但未消(见 E4)。
-- 论文素材:引理 3.2 的严格化必须以 bin 单位陈述偏移界;离散化标度
-  (角 ×2 vs ×4)与重投影是设计空间的一根轴。
+- Symptom: column striping inside the S2 fan (0.4–1.3×), even at ρ=0 with
+  no temporal reuse.
+- Mechanism: the proposal's `b' = childBin(s.ω)` uses one bin for all four
+  parents. Under the (s×2, B×4, t×4) scaling, the parent-parallax direction
+  shift grows ~2^n **in bin units** (≈4 bins at level 3) — the claim
+  "direction shift bounded within O(1) angular bins" is **false** for this
+  discretization (true in radians, false in bins: bin width shrinks 4^n,
+  faster than parallax shrinks 2^n). Vanilla RC hides this behind its
+  4-child-bin average + bilinear blur; single-bin RIS lookup pulls from a
+  misaligned, dark bin.
+- Fix: **per-parent reprojected bin selection** (the RIS version of the RC
+  community's "bilinear fix"): z = p + ω·t_rep with t_rep = geometric mean
+  of the parent interval √(start·end); bp_q = binOf(n+1, dir(q→z)).
+- After the fix: S1 ρ=1 lit at 97.8%; S2 stripes reduced but not gone (E4).
+- Paper material: the rigorous form of Lemma 3.2 must state the shift bound
+  in bin units; the discretization scaling (angular ×2 vs ×4) plus
+  reprojection is a design axis.
 
-## E4 — 区间边界残余偏差(开放,M2)
+## E4 — Residual interval-boundary bias (open at M2)
 
-- 配置:S2, ρ=0, no-temporal, frames=256, seeds {1,7,42}
-- 三 seed 一致的结构性残差:墙后紧邻区 ~1.3×(过冲),level-2→3 边界
-  (dist≈84px)附近 ~0.7×(欠收);扇形总能量 91–95%。其余列间波动为
-  空间相关噪声(seed 间不稳定)。
-- 假设机制:光源跨区间边界时,近段命中统计与远段 tail 的接力在探针间
-  视差下不闭合(vanilla RC 同区域表现为 ringing)。
-- M2 候选修复:区间边界随机抖动(bias→noise)/ 区间重叠 + MIS。
+- Config: S2, ρ=0, no-temporal, frames=256, seeds {1,7,42}.
+- Seed-stable structural residual: ~1.3× overshoot just behind the wall,
+  ~0.7× under-collection near the level-2→3 boundary (dist≈84px); total fan
+  energy 91–95%. Remaining column-to-column fluctuation is spatially
+  correlated noise (unstable across seeds).
+- Hypothesized mechanism: when content straddles an interval boundary, the
+  hand-off between near-segment hit statistics and far-segment tail does
+  not close under inter-probe parallax (vanilla RC shows ringing in the
+  same region).
+- Candidate M2 fixes: stochastic boundary jitter (bias→noise) / overlapped
+  intervals + MIS.
 
-## E5 — M1 验收 + Go/No-Go 预览
+## E5 — M1 acceptance + Go/No-Go preview
 
-配置:size=128, B0=4, t0=4px, levels=4, temporal(M_n=8·2^n, cap 64),
-frames=64, seed=1, λ=0.05。参考:4096 rays/px 分层抖动,解析求交。
+Config: size=128, B0=4, t0=4px, levels=4, temporal (M_n=8·2^n, cap 64),
+frames=64, seed=1, λ=0.05. Reference: 4096 rays/px stratified, analytic
+intersections.
 
-### S1(薄遮挡,tilt 0.05 rad,厚度 1.0px < s_1=2px)
+### S1 (thin occluder, tilt 0.05 rad, thickness 1.0px < s_1=2px)
 
-| 方法 | MAPE(all) | MAPE(shadow) | E(shadow) 漏光 | E(lit) |
+| method | MAPE(all) | MAPE(shadow) | E(shadow) leak | E(lit) |
 |---|---|---|---|---|
 | reference | 0 | 0 | 0.00000 | 0.14776 |
 | vanilla RC | 1.4427 | 11.85 | 0.01185 | 0.15087 |
@@ -65,156 +85,194 @@ frames=64, seed=1, λ=0.05。参考:4096 rays/px 分层抖动,解析求交。
 | full ρ=0.25 | 0.4176 | 2.29 | **0.00229 (19.3%)** | 0.14645 |
 | full ρ=1 | 0.1208 | 0.00 | **0.00000 (0%)** | 0.14448 |
 
-### S2(针孔小亮源,源半径 0.64px,亚 bin)
+### S2 (pinhole + small source, radius 0.64px, sub-bin)
 
-| 方法 | MAPE(all) | MAPE(room) | E(room) | 回收率 |
+| method | MAPE(all) | MAPE(room) | E(room) | recovery |
 |---|---|---|---|---|
 | reference | 0 | 0 | 0.02839 | 100% |
-| vanilla RC | 6.4634 | 9.87 | 0.03271 | 115%(结构完全错误:ringing 雪花)|
+| vanilla RC | 6.4634 | 9.87 | 0.03271 | 115% (structure destroyed: ringing snowflake) |
 | full ρ=0 | 1.8253 | 3.13 | 0.02487 | 87.6% |
 | full ρ=0.25 | 1.1071 | 1.92 | 0.02335 | **82.2%** |
 | full ρ=1 | 0.1147 | 0.06 | 0.02064 | 72.7% |
 
-### 结论
+### Conclusions
 
-- **M1 验收:通过**。退化模式逐 bit ✓;S1 漏光显著低于 RC(19–100% 削减)
-  且 MAPE 全面优于(2.5–12×)✓。
-- **单一配置 ρ=0.25 同时清掉 GO-1(漏光<20%)与 GO-2(回收>80%)**。
-  ρ 是货真价实的 bias/cost 旋钮:S1 要 ρ 大,S2 要 ρ 小,0.25 双达标。
-- GO-3(S3 时域)、GO-4(消融归因)待 M2。
+- **M1 acceptance: PASS.** Degenerate mode bit-exact ✓; S1 leak far below
+  RC (19–100% reduction) with MAPE better across the board (2.5–12×) ✓.
+- **A single config ρ=0.25 clears both GO-1 (leak <20%) and GO-2
+  (recovery >80%).** ρ is a genuine bias/cost dial: S1 wants ρ high, S2
+  wants ρ low; 0.25 clears both.
+- GO-3 (S3 temporal) and GO-4 (ablation attribution) deferred to M2.
 
-## 与立项文档的偏差登记
+## Deviations from the proposal (registered)
 
-1. CPU oracle 用解析求交(圆/盒闭式),非 SDF sphere tracing——正确性
-   基准要求精确命中;WebGPU 版(M2)再做 SDF 路径以对齐 shadertoy 生态。
-2. 语言:C++17(本机无 Rust 工具链);零依赖,PCG32 固定 seed 可复现。
-3. `childBin(s.ω)` 单 bin 抽取被逐父重投影替代(E3)。
-4. ρ-validation 语义:选前验证 + β 重归一,非选后置零(E2)。
-5. 区间用几何级数起点 start_n = t0·(4^n−1)/3(从 0 连续覆盖),
-   非字面 t_n = t0·4^n(后者 [0,t0) 无覆盖)。
+1. CPU oracle uses analytic intersections (closed-form circle/box), not SDF
+   sphere tracing — a correctness baseline wants exact hits; the WebGPU
+   version (M2) does the SDF path for shadertoy-ecosystem parity.
+2. Language: C++17 (no Rust toolchain on the machine); zero dependencies,
+   PCG32 with fixed seeds for reproducibility.
+3. Single-bin `childBin(s.ω)` lookup replaced by per-parent reprojection (E3).
+4. ρ-validation semantics: validate-before-select + β renormalization, not
+   kill-after-select (E2).
+5. Intervals use geometric-series starts start_n = t0·(4^n−1)/3 (contiguous
+   coverage from 0), not the literal t_n = t0·4^n (which leaves [0,t0)
+   uncovered).
 
-## E6 — 多 seed 误差棒(GO-1/GO-2 边际,2026-07-22)
+## E6 — Multi-seed error bars (GO-1/GO-2 margins, 2026-07-22)
 
-配置:ρ=0.25, temporal, frames=64, seeds 1–8。
-- S1 漏光(% of vanilla):**18.0% ± 1.9%**,范围 [15.4, 21.0](1/8 seed 略过线)
-- S2 回收率:**86.2% ± 4.6%**,范围 [82.2, 94.9](全部达标)
-- 结论:GO-1 均值达标、最差 seed 边缘;GO-2 稳定达标。ρ 可微调(~0.3)换边际。
+Config: ρ=0.25, temporal, frames=64, seeds 1–8.
+- S1 leak (% of vanilla): **18.0% ± 1.9%**, range [15.4, 21.0]
+  (1/8 seeds marginally over the bar)
+- S2 recovery: **86.2% ± 4.6%**, range [82.2, 94.9] (all seeds clear)
+- Conclusion: GO-1 passes on the mean with the worst seed marginal; GO-2
+  stable. ρ can be nudged (~0.3) to buy margin.
 
-## E7 — 等射线消融链(GO-4 归因,2026-07-22)
+## E7 — Equal-ray ablation chain (GO-4 attribution, 2026-07-22)
 
-seed=1, frames=64,三档同射线预算:
+seed=1, frames=64, three configurations at identical ray budget:
 
-| 配置 | S1 E(shadow) | S1 MAPE(all) | S2 E(room) | S2 MAPE(room) |
+| config | S1 E(shadow) | S1 MAPE(all) | S2 E(room) | S2 MAPE(room) |
 |---|---|---|---|---|
-| StochasticRC(抖动+值传递,无 RIS)| 0.01151(=97% vanilla)| 2.39 | 0.03020(过冲)| 10.35 |
-| full 无时域(仅 merge-as-RIS)| 0.00228 | 0.40 | 0.02399 | 1.95 |
+| StochasticRC (jitter + value passing, no RIS) | 0.01151 (=97% vanilla) | 2.39 | 0.03020 (overshoot) | 10.35 |
+| full, no temporal (merge-as-RIS only) | 0.00228 | 0.40 | 0.02399 | 1.95 |
 | full + temporal | 0.00229 | 0.42 | 0.02335 | 1.92 |
 
-- **漏光是 merge 的结构性偏差,不是射线不足**:等射线抖动版漏光 ≈ vanilla。
-- **几乎全部增益来自 merge-as-RIS**;静态场景下 temporal 增量可忽略
-  (帧平均已在积样)。GO-4 在静态场景上成立;动态场景下 temporal 的价值见 E8。
+- **The leak is structural in the merge, not ray starvation**: the
+  equal-ray jittered variant leaks ≈ vanilla.
+- **Essentially the entire gain comes from merge-as-RIS**; temporal adds
+  little on frame-averaged statics (frame averaging already accumulates).
+  GO-4 holds on statics; temporal's value on dynamics is E8.
 
-## E8 — S3 动态光(风险 1 红线测试 + 两个时域发现,2026-07-22)
+## E8 — S3 dynamic light (risk-1 red-line test + two temporal findings, 2026-07-22)
 
-场景:s3.json(圆形光 r=0.03 闪烁方波 P=32,薄条遮挡,floor mask),
-frames=192, ρ=0.25。
+Scene: s3.json (circular light r=0.03 blinking square-wave P=32, thin bar
+occluder, floor mask), frames=192, ρ=0.25.
 
-**红线判定:未触发。** 静态段 flicker(时域 CV)随 M 单调衰减:
-mcap0=8: 0.89 → 32: 0.54 → 64: 0.40;无不随 M 衰减的结构性振荡。
-lag-1 自相关随 M 上升(L0 0.85→0.91;逐级递增 L0<L1<L2)= 记忆变长、
-混合变慢,即文档预期的"良性:收敛变慢"形态。
+**Red-line verdict: NOT triggered.** Static-segment flicker (temporal CV)
+decays monotonically with M: mcap0=8: 0.89 → 32: 0.54 → 64: 0.40; no
+structural oscillation that fails to decay with M. Lag-1 autocorrelation
+rises with M (L0 0.85→0.91; increasing with level L0<L1<L2) = longer
+memory, slower mixing — the proposal's predicted benign form ("slower
+convergence, not variance explosion").
 
-**时域发现 #1(致命,已修):naive lum-target 时域 RIS 完全无法跟踪变暗。**
-光灭后 48 帧输出仍为 ON 态的 70%(亮样本被 target 永久偏爱)。
-修复 = 时域重评估:样本存 (cRef, emitLum0) 不可变,每帧
-c = cRef·(lum_now(y)/emitLum0)。灭灯响应 2–3 帧;静态场景数值逐位不变;
-且样本可"复活"(灯回亮时几何仍有效的旧样本立即恢复,ON 瞬跳至 ~0.3–0.5)。
+**Temporal finding #1 (fatal, fixed): naive luminance-target temporal RIS
+cannot track dimming at all.** 48 frames after light-off the output was
+still at 70% of the ON level (the target permanently prefers stale bright
+samples). Fix = temporal re-evaluation: samples store immutable
+(cRef, emitLum0); each frame c = cRef·(lum_now(y)/emitLum0). Light-off
+response 2–3 frames; static scenes bit-identical; and samples can
+**revive** (when the light returns, geometrically-still-valid old samples
+recover instantly; ON jumps to ~0.3–0.5 immediately).
 
-**时域发现 #2(开放):亮度上升适应受 M 限制。** ON 后曲线瞬跳(复活)+
-缓慢爬升,32 帧内不进 ±10% 带(且逐周期衰减:暗样本在 OFF 期逐步顶替
-可复活样本并积累"黑暗置信度")。尝试 candidate-triggered M-clamp
-(new 比 prev 亮 8× ⇒ M≤4):S3 ON 收敛 6–10 帧,**但静态 S2 上偏 +25%**
-(回收 82%→103%)——MIS 权重依赖样本抽取值 ⇒ 有偏,已回退。
-原则性方案(M2+):scene-change flag 驱动的失效、temporal-gradient MIS、
-双 reservoir 历史缓冲。当前诚实结论:ON 适应 ~M 帧,与 ReSTIR 系
-无失效机制时的行为同阶;OFF 适应 2–3 帧(重评估精确)。
+**Temporal finding #2 (open): brightening adaptation is M-limited.** After
+ON the curve jumps (revival) then climbs slowly, not entering the ±10% band
+within 32 frames (and decaying per cycle: dark samples progressively evict
+revivable ones during OFF and accumulate "darkness confidence"). Tried a
+candidate-triggered M-clamp (new 8× brighter than prev ⇒ M≤4): S3 ON
+converges in 6–10 frames **but statics bias up +25% on S2** (recovery
+82%→103%) — MIS weights depending on the sampled values ⇒ biased; reverted.
+Principled options (M2+): scene-change-flag invalidation, temporal-gradient
+MIS, dual-reservoir history. Honest current state: ON adaptation ~M frames,
+same order as ReSTIR-family estimators without invalidation; OFF adaptation
+2–3 frames (re-evaluation is exact).
 
-## E9 — 区间边界抖动 + 场景变更失效(E4/E8#2 双修复,2026-07-22)
+## E9 — Interval-boundary jitter + scene-change invalidation (fixes for E4 and E8#2, 2026-07-22)
 
-**边界抖动**:每帧(或每 block)对 t0 做 log-uniform 4^±0.5 缩放,边界扫过
-整个级间隙;探针网格/bin/索引不动。三个教训:
-1. **逐帧抖动与时域复用不相容**:旧样本的 c 烘死了旧分割,跨分割混用导致
-   区间重叠双计(实测 S1 漏光膨胀 3×)。修复:分割按 block(默认 8 帧)
-   固定,block 切换时硬清 M(帧号驱动,数据无关 ⇒ 无偏)。
-2. **无时域一致性验证**:no-temporal + 逐帧抖动下 S2 扇形总能量 1.003
-   (修复前 0.91–0.95),E4 的结构性低带消失。
-3. block 长度 = "边界去相关速度 vs 时域深度"的旋钮:frames=64/block=16
-   只有 2 个分割样本 → seed 间 ±24% 摆动;frames=128/block=8(16 个分割)
-   → ±6%。
+**Boundary jitter**: scale t0 log-uniformly by 4^±0.5 per frame (or per
+block); boundaries sweep the whole inter-level gap; probe grids/bins/
+indexing untouched. Three lessons:
+1. **Per-frame jitter is incompatible with temporal reuse**: stored
+   radiance bakes in the old split; mixing splits double-counts interval
+   overlaps (measured 3× S1 leak inflation). Fix: splits fixed per block
+   (default 8 frames), hard M reset at block switches (frame-indexed,
+   data-independent ⇒ unbiased).
+2. **Consistency check without temporal**: no-temporal + per-frame jitter
+   gives S2 total fan energy 1.003 (was 0.91–0.95); E4's structural low
+   band disappears.
+3. Block length = the "boundary decorrelation rate vs temporal depth" dial:
+   frames=64/block=16 gives only 2 split samples → ±24% swing across seeds;
+   frames=128/block=8 (16 splits) → ±6%.
 
-**场景变更失效**:renderer 传入 dirty 标志(帧号驱动),该帧硬清 M(=0)。
-与 E8 被回退的 candidate-triggered clamp 不同,这是数据无关的 ⇒ 无偏;
-S3 blink 双向 3 帧收敛。clamp 至 4 不够(revived-dark 混合下 ON 仍不收敛),
-硬清干净利落——与生产渲染器 disocclusion 时重置 M 同款。
+**Scene-change invalidation**: the renderer raises a dirty flag
+(frame-indexed); that frame hard-resets M (=0). Unlike E8's reverted
+candidate-triggered clamp this is data-independent ⇒ unbiased; S3 blink
+converges in 3 frames both directions. Clamping to 4 is insufficient
+(ON still fails under the revived/dark mixture); the hard reset is clean —
+the same move production renderers make on disocclusion.
 
-### 汇总(frames=128, block=8, 6 seeds)
+### Summary (frames=128, block=8, 6 seeds)
 
-| 配置 | S1 漏光 %vanilla | S2 回收率 |
+| config | S1 leak %vanilla | S2 recovery |
 |---|---|---|
-| ρ=0.25 | 21.4% ± 4.4 | **99.4% ± 6.0**(修复前 86.2 有系统性欠收)|
-| **ρ=0.5(新推荐)** | **10.7% ± 2.4** ✓ | **94.0% ± 6.1** ✓ |
-| ρ=1 | ~0%(≤0.2%)| —(约 90%,未全测)|
+| ρ=0.25 | 21.4% ± 4.4 | **99.4% ± 6.0** (was 86.2 with a systematic deficit) |
+| **ρ=0.5 (new recommended)** | **10.7% ± 2.4** ✓ | **94.0% ± 6.1** ✓ |
+| ρ=1 | ~0% (≤0.2%) | — (~90%, not fully swept) |
 
-### 两套推荐配置
+### Two recommended configs
 
-- **离线/累积**:bjitter block=8, ρ=0.5 → 四条 GO 全过且有真实裕量,
-  边界无偏。
-- **实时/流式**:bjitter block=∞(静态段无切换,flicker 0.56)+
-  场景变更硬清 → OFF:3 / ON:3 帧;边界偏差保留单分割水平。
-  未来:逐级错相切换(per-level staggered splits)可兼得。
+- **Offline/accumulating**: bjitter block=8, ρ=0.5 → all four GO bars clear
+  with real margin, boundary-unbiased.
+- **Real-time/streaming**: bjitter block=∞ (no switches in static segments,
+  flicker 0.56) + scene-change hard reset → OFF:3 / ON:3 frames; boundary
+  bias stays at single-split level. Future: per-level staggered splits may
+  give both.
 
-## E10 — WebGPU 移植验证(2026-07-22)
+## E10 — WebGPU port validation (2026-07-22)
 
-/webgpu:WGSL compute,融合内核(trace + merge-as-RIS + temporal 单 dispatch
-每级,自顶向下),reservoir 双缓冲 ping-pong,SDF sphere tracing(shadertoy
-对齐,非 CPU 的解析求交),场景 JSON 与 CPU 端共享。256²,f32。
-本地跑法:repo 根 `python3 -m http.server 8123` → /webgpu/index.html。
+/webgpu: WGSL compute, fused kernel (trace + merge-as-RIS + temporal in one
+dispatch per level, top-down), ping-pong reservoir buffers, SDF sphere
+tracing (shadertoy parity — not the CPU's analytic intersections), scene
+JSONs shared with the CPU side. 256², f32.
+Run locally: `python3 -m http.server 8123` at repo root → /webgpu/index.html.
 
-- 实测 120 fps(浏览器 vsync 顶格)@ 256²·4bins·5 levels,Apple Silicon。
-- 指标与 CPU oracle 同域(在线 mask 能量,ρ=0.5,单帧无累积):
-  S1 E(shadow)=0.00015(漏光≈0)、E(lit)=0.143;
-  S2 E(room)=0.02864 vs ref 0.02839(**回收 100.9%**);
-  S3 blink E(floor)≈0.0369 vs Eon 0.0377。
-- vanilla 模式在 GPU 上复现全部预期失败形态(S2 ringing 雪花 + 房间内
-  blob 化扇形),与 full 模式一键对比——demo 传播的核心画面。
-- 移植期间踩的 WebGPU 坑(记录给后来者):顶级 merge 把同一 buffer 同时绑
-  read_write + read ⇒ 整条 command buffer 静默失效(全黑);layout:'auto'
-  只暴露 entry point 实际使用的 binding。
+- Measured 120 fps (browser vsync-capped) @ 256²·4 bins·5 levels, Apple
+  silicon.
+- Metrics in the CPU oracle's regime (live mask energies, ρ=0.5,
+  single-frame, no accumulation):
+  S1 E(shadow)=0.00015 (leak≈0), E(lit)=0.143;
+  S2 E(room)=0.02864 vs ref 0.02839 (**100.9% recovery**);
+  S3 blink E(floor)≈0.0369 vs Eon 0.0377.
+- Vanilla mode reproduces every expected failure shape on GPU (S2 ringing
+  snowflake + blobbed room fan), one click away from full mode — the
+  demo's core image.
+- WebGPU pitfalls hit during the port (recorded for the next person):
+  binding the same buffer read_write + read in the top-level merge silently
+  invalidates the whole command buffer (all-black); layout:'auto' exposes
+  only the bindings each entry point actually uses.
 
-## E11 — "泄漏环":区间边界漏光的空间定位(2026-07-23,demo 中用户发现)
+## E11 — The "leak ring": spatially localizing interval-boundary leak (2026-07-23, found by the author in the demo)
 
-现象:WebGPU demo,S2,ρ=0 + 单一分割(block=9999)时,阴影区出现一条
-微弱的弧状鬼影带(周期性 blob)。
+Symptom: WebGPU demo, S2, ρ=0 + single split (block=9999): a faint arc of
+ghost light (periodic blobs) appears in the shadow region.
 
-诊断(CPU oracle,256²,ρ=0,无抖动,seed 3):对每个泄漏像素计算其
-朝向光源的视线与墙面的交点距离 t_w,直方图在 **t_w ∈ [80,88) 处 6–8×
-尖峰(604 px vs 邻域 ~70–90)**,即 t₃=84(level-2→3 区间边界);t₂=20
-处有次级小峰。机制:该弧上像素的 level-3 父探针距墙 <84px,父探针自己的
-区间 [84,340) **从墙后开始**——射线未经测试穿墙命中光源,存入亮样本;
-子链重连拉取,ρ=0 时无人检验 p→y。blob 周期 = 父网格节拍。
-这正是 Lemma C 的 annulus band + GRIS unoccluded-target 缺口的空间可视化。
+Diagnosis (CPU oracle, 256², ρ=0, no jitter, seed 3): for every leaking
+pixel compute t_w, the distance along its sightline-to-source at which it
+crosses the wall; the histogram spikes **6–8× at t_w ∈ [80,88) (604 px vs
+~70–90 in neighboring bands)** — exactly t₃=84, the level-2→3 interval
+boundary; a secondary bump sits at t₂=20. Mechanism: for pixels on the arc,
+level-3 parents sit closer than 84px to the wall, so the parents' own
+interval [84,340) **starts beyond the wall** — their rays hit the source
+untested and store bright samples; the child chain reconnects that energy
+in, and at ρ=0 nothing ever checks p→y. Blob periodicity = parent-grid
+beat. This is precisely Lemma C's annulus band + GRIS's unoccluded-target
+gap, made visible.
 
-抑制验证(t₃ 带内泄漏像素数):ρ=0 无抖动 604;ρ=0.5 无抖动 298(−51%);
-ρ=0 block-8 抖动 306(−49%,总数变多但变暗——bias→variance 字面演示);
-ρ=1 时整体泄漏 ~0.1%。
+Suppression check (leak pixels inside the t₃ band): ρ=0 no-jitter 604;
+ρ=0.5 no-jitter 298 (−51%); ρ=0 block-8 jitter 306 (−49%; more pixels but
+dimmer — a literal bias→variance demonstration); at ρ=1 total leak ~0.1%.
 
-处置:不是 bug 而是展品——demo 说明文字新增 "Try this:拖 ρ 到 0" 段落,
-把该弧作为论文核心失效模式的现场演示。
+Disposition: not a bug but an exhibit — the demo's explainer gained a
+"Try this: drag ρ to 0" paragraph presenting the arc as a live
+demonstration of the paper's central failure mode.
 
-- [x] GO-1 S1 漏光 < vanilla 20%:多 seed **18.0%±1.9%**(1/8 seed 21.0%,
-      边际;ρ 微调可换裕量)
-- [x] GO-2 S2 回收 > 80%:多 seed **86.2%±4.6%**,全部达标
-- [x] GO-3 S3:flicker 随 M 单调衰减(0.89→0.40),**无结构性振荡,红线未触发**;
-      附注:ON 适应 ~M 帧(E8 发现 #2,非红线项)
-- [x] GO-4 merge-as-RIS 为主增益:等射线消融(E7)——StochasticRC ≈ vanilla,
-      RIS 单独贡献 ~全部改进
+## Go/No-Go tracking (proposal §9; decided at end of M2)
+
+- [x] GO-1 S1 leak < 20% of vanilla: multi-seed **18.0%±1.9%** at ρ=0.25
+      (1/8 seeds at 21.0%, marginal; ρ buys margin — 10.7%±2.4 at ρ=0.5)
+- [x] GO-2 S2 recovery > 80%: multi-seed **86.2%±4.6%** (99.4/94.0 with
+      boundary jitter), all seeds clear
+- [x] GO-3 S3: flicker decays monotonically with M (0.89→0.40), **no
+      structural oscillation — red line not triggered**; note: ON
+      adaptation ~M frames (E8 finding #2, not a red-line item)
+- [x] GO-4 merge-as-RIS is the main gain: equal-ray ablation (E7) —
+      StochasticRC ≈ vanilla; RIS alone contributes ~all improvement
