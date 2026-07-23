@@ -1,0 +1,10 @@
+{
+  "name": "s3_dynamic_light",
+  "shapes": [
+    {"type": "circle", "center": [0.5, 0.15], "radius": 0.03, "emission": [10, 10, 10]},
+    {"type": "box", "center": [0.5, 0.5], "half": [0.12, 0.008], "emission": [0, 0, 0]}
+  ],
+  "masks": {
+    "floor": {"min": [0.2, 0.62], "max": [0.8, 0.95]}
+  }
+}

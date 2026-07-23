@@ -1,0 +1,102 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reservoir Cascades — interactive 2D demo</title>
+<style>
+  body { background:#101014; color:#ddd; font:15px/1.45 system-ui; margin:0;
+         display:flex; flex-direction:column; align-items:center; gap:14px;
+         padding:24px 16px 48px; }
+  h1 { font-size:22px; margin:0; }
+  .sub { color:#9aa; max-width:680px; text-align:center; margin:0; }
+  .sub b { color:#cdd; }
+  canvas { width:512px; height:512px; max-width:95vw; image-rendering:pixelated;
+           border:1px solid #333; border-radius:4px; }
+  .row { display:flex; gap:16px; align-items:center; flex-wrap:wrap; justify-content:center; }
+  select,input[type=number] { background:#222; color:#ddd; border:1px solid #444;
+           padding:3px 7px; border-radius:3px; }
+  #metrics,#status { font-family:ui-monospace,monospace; font-size:12.5px; color:#8c8; }
+  #status.err { color:#e88; font-size:14px; max-width:620px; text-align:center; }
+  label { display:flex; gap:6px; align-items:center; }
+  .modewrap select { font-weight:600; }
+  .foot { color:#778; font-size:12.5px; max-width:680px; text-align:center; }
+  .foot a { color:#8ab; }
+  details { max-width:680px; color:#aab; font-size:13.5px; }
+  summary { cursor:pointer; color:#cdd; }
+</style>
+</head>
+<body>
+  <h1>Reservoir Cascades</h1>
+  <p class="sub">Radiance Cascades compute global illumination on a principled
+  multi-scale grid, but their deterministic interpolation merge <b>leaks light,
+  rings, and destroys small bright sources</b> — errors that never average away.
+  This demo replaces that merge with ReSTIR-style resampling, converting the
+  structural bias into noise that time averages out.
+  <b>Flip the mode switch</b> to compare.</p>
+
+  <div class="row">
+    <label class="modewrap">mode
+      <select id="mode">
+        <option value="full">Reservoir Cascades (ours)</option>
+        <option value="vanilla">vanilla Radiance Cascades</option>
+      </select>
+    </label>
+    <label>scene
+      <select id="scene">
+        <option value="s2" selected>S2 — sub-bin emitter + pinhole</option>
+        <option value="s1">S1 — thin occluder</option>
+        <option value="s3">S3 — dynamic light</option>
+      </select>
+    </label>
+    <span id="fps"></span>
+  </div>
+  <div class="row">
+    <label>&rho; <input id="rho" type="range" min="0" max="1" step="0.05" value="0.5" style="width:90px"><span id="rhoV">0.50</span></label>
+    <label>M&#8320; <input id="mcap" type="number" min="1" max="64" value="8" style="width:48px"></label>
+    <label>jitter block <input id="block" type="number" min="0" max="9999" value="9999" style="width:56px"></label>
+    <label><input id="blink" type="checkbox"> blink (S3)</label>
+  </div>
+  <canvas id="canvas"></canvas>
+  <div id="metrics"></div>
+  <div id="status">loading&hellip;</div>
+  <script>
+    // Module scripts are blocked on file:// — fail loudly instead of hanging.
+    if (location.protocol === 'file:') {
+      document.getElementById('status').textContent =
+        'This page must be served over HTTP (module scripts are blocked on ' +
+        'file://). Run: python3 -m http.server 8123 at the repo root, then ' +
+        'open http://localhost:8123/webgpu/';
+      document.getElementById('status').className = 'err';
+    }
+  </script>
+
+  <details>
+    <summary>What am I looking at?</summary>
+    <p>Each frame traces <b>one ray per probe-bin</b> into a 2D SDF scene and
+    merges radiance top-down through a 4&ndash;5 level cascade. In
+    <b>vanilla</b> mode the merge is the standard deterministic bilinear
+    interpolation: on S2 it shatters into the ringing &ldquo;snowflake&rdquo;
+    and a blobbed light fan; on S1 it leaks light behind the thin bar. In
+    <b>ours</b> the merge is resampled importance sampling over the same
+    cascade &mdash; grain instead of structure, and the grain is unbiased.
+    &rho; is the validation-ray probability (kills residual leaks);
+    M&#8320; the temporal confidence cap; live mask-energy metrics print below
+    the canvas and match the paper&rsquo;s CPU-oracle numbers.</p>
+    <p><b>Try this:</b> on S2, drag &rho; to 0. A faint arc of ghost light
+    appears in the shadow &mdash; pixels whose sightline crosses the wall
+    exactly at a cascade interval boundary, where coarse-level parents&rsquo;
+    rays start <i>beyond</i> the wall and never test it. That arc is the
+    paper&rsquo;s interval-boundary leak (Lemma&nbsp;C) made visible;
+    raising &rho; re-tests those reconnections and extinguishes it.</p>
+  </details>
+
+  <p class="foot">
+    Paper: <a id="paperlink" href="#">arXiv preprint (link coming)</a> &middot;
+    Code: <a id="repolink" href="#">GitHub (link coming)</a><br>
+    Requires WebGPU (recent Chrome, Edge, or Safari; Firefox behind a flag).
+    All computation runs locally in your browser.
+  </p>
+<script type="module" src="main.js"></script>
+</body>
+</html>

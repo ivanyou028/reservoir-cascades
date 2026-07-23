@@ -1,0 +1,11 @@
+{
+  "name": "s1_thin_occluder",
+  "shapes": [
+    {"type": "box", "center": [0.5, 0.08], "half": [0.10, 0.03], "emission": [6, 6, 6]},
+    {"type": "box", "center": [0.5, 0.45], "half": [0.20, 0.004], "angle": 0.05, "emission": [0, 0, 0]}
+  ],
+  "masks": {
+    "shadow": {"min": [0.35, 0.475], "max": [0.65, 0.61]},
+    "lit":    {"min": [0.05, 0.55], "max": [0.25, 0.85]}
+  }
+}

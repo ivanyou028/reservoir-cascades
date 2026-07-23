@@ -1,0 +1,11 @@
+{
+  "name": "s2_pinhole_small_source",
+  "shapes": [
+    {"type": "circle", "center": [0.08, 0.5], "radius": 0.005, "emission": [100, 100, 100]},
+    {"type": "box", "center": [0.35, 0.215], "half": [0.01, 0.265], "emission": [0, 0, 0]},
+    {"type": "box", "center": [0.35, 0.76],  "half": [0.01, 0.24],  "emission": [0, 0, 0]}
+  ],
+  "masks": {
+    "room": {"min": [0.40, 0.10], "max": [0.95, 0.90]}
+  }
+}
