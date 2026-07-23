@@ -193,20 +193,16 @@ cascade.
 
 ## 6. Open (ranked by payoff)
 
-1. ~~Chain-variance recursion~~ → DONE, see [variance.md](variance.md):
-   Lemma S (selection noise = λμ per level, zero at λ=0), Lemma T
-   (correlation-bracketed transfer [Σβ²,1]·(1+Cε_n)²), Theorem V
-   (depth-uniform e^{4Cε₀} non-amplification — the penumbra engine bounds
-   variance compounding too), and the temporal AR(1) model predicting E8.
-   This retires the depth-exponential a.s. C_f as the operative bound.
-2. ~~Windowed-lookup unbiasedness~~ → DONE (lemma-3_2.md Prop W): coverage
-   restored ⟺ w ≥ δ'_n; coverage renormalization is the LEGAL Eq 17/20
-   partition, unlike the visibility one.
-3. The geometric constant of |A|/|Ω_b| for the axis-aligned grid (a computable
-   integral over content depth — would upgrade one order-only claim to an exact
-   constant); the leak's 27%≈ε₁ calibration stays calibrated.
-4. Unanimity under inter-parent correlation: the union bound over per-parent
-   sliver events is correlation-robust (shared grandparents only *help*
-   unanimity); state this explicitly in Prop V.
-5. Two-component temporal model (switch + AR(1)); inter-level ESS to locate
+(The chain-variance recursion and the windowed-lookup condition, formerly
+listed here, are resolved in [variance.md](variance.md) and
+[lemma-3_2.md](lemma-3_2.md) Prop W respectively.)
+
+1. The geometric constant of |A|/|Ω_b| for the axis-aligned grid (a
+   computable integral over content depth — would upgrade one order-only
+   claim to an exact constant); the leak's ~27–35%≈ε₁ calibration stays
+   calibrated.
+2. Unanimity under inter-parent correlation: the union bound over
+   per-parent sliver events is correlation-robust (shared grandparents only
+   *help* unanimity); state this explicitly in Prop V.
+3. Two-component temporal model (switch + AR(1)); inter-level ESS to locate
    a* in Lemma T's bracket (variance.md §5).

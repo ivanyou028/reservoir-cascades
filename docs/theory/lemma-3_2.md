@@ -243,38 +243,25 @@ Status: Lemmas J/D, Props R/C, Prop V, Lemma 3.2.I and the GRIS anchoring are
 complete (with the bounded-radiance hypothesis made explicit); geometric
 constants (|A|/|Ω_b|, the 27%≈ε₁ leak calibration) remain order-only.
 
-## 7. Open / TODO for the paper
+## 7. Open problems
 
-1. ~~Integrand mismatch~~ → DONE, see [integrand-mismatch.md](integrand-mismatch.md)
-   (Lemma 3.2.I). Two upgrades over the sketch here: reconnection needs NO
-   Lipschitz term (same hit point ⇒ same value; only the Jacobian factor
-   survives off-penumbra), and there is a polygonal/smooth dichotomy —
-   O(K·ε_n) for polygonal scenes vs O(K·√ε_n) for smooth convex obstacles
-   (grazing corridors). Residual gaps listed in its §9.
-2. ~~Prop V: conditional-expectation decomposition~~ → DONE (§5 above,
-   verified). Key results: identity (†); renorm-before = O(ε_n) *contingent on
-   bounded radiance* via off-penumbra unanimity (the "convex ⇒ unbiased" and
-   "measure ⇒ bias" shortcuts are both false); kill-after = −(1−v_p)L_tail
-   O(1) shrink; ρ-mixture exactly linear per merge but measured convex.
-3. ~~GRIS anchoring~~ → DONE, see [gris-anchoring.md](gris-anchoring.md).
-   Full correspondence to Def 4.1/4.2/Eq 15–22/Def 5.1/Thm 1/A.4; Prop C = Eq 15
-   coverage violation; the value-passing gap is GRIS's own Appendix B "On
-   Visibility" (unoccluded target p̂⁻ⱽ, non-canonical reuse) — for which we
-   supply the O(ε_n) bound GRIS left as "often imperceptible bias".
-3b. Grazing-set measure bound (A2) from K and curvature bounds.
-4. Temporal penumbra condition (proposal §3.7): characteristic angular
-   velocity v/r ⇒ M_n schedule; formalize block-jitter unbiasedness (E9)
-   as piecewise-stationary MIS.
-5. ~~Windowed-lookup unbiasedness~~ → DONE (Prop W, §4 above): coverage
-   restored ⟺ window ≥ δ'_n; the coverage renormalization is the LEGAL
-   Eq 17/20 partition (support-determined), in pointed contrast to Prop V's
-   visibility renormalization. Implementation is an M2+/3D-version item.
-5b. Chain variance → DONE, see [variance.md](variance.md): selection noise
-   = λ·μ per level (zero at λ=0, Lemma S); transfer factor bracketed
-   [Σβ², 1]·(1+Cε_n)² under arbitrary parent correlation (Lemma T — risk #1
-   can slow, never diverge); total ≤ e^{4Cε₀}·Σ injections, depth-uniform
-   (Theorem V); temporal reservoir = AR(1) with coefficient cap/(1+cap),
-   predicting E8's autocorr (.667 vs .651 measured at cap 2) and the
-   flicker exponent (0.5 vs 0.38±0.05 measured).
-6. Explicit constants for our defaults (s₀=1, t₀=4, B₀=4): ε₀ = 3√2/8 ≈ 0.53,
-   per-level radian shift ≤ 0.53·2⁻ⁿ; bin misalignment table vs. n.
+Resolved threads live in their own documents: the integrand-mismatch bound
+in [integrand-mismatch.md](integrand-mismatch.md) (Lemma 3.2.I), the GRIS
+correspondence in [gris-anchoring.md](gris-anchoring.md), the variance side
+in [variance.md](variance.md), Prop V/W in §4–§5 above. What remains open:
+
+1. Grazing-set measure bound (assumption A2) derived from K and curvature
+   bounds; and whether the smooth-obstacle √ε_n exponent (Lemma 3.2.I,
+   Lemma G) is tight.
+2. Temporal penumbra condition: characteristic angular velocity v/r ⇒ a
+   principled M_n schedule; formalize block-jitter unbiasedness (lab log
+   E9) as piecewise-stationary MIS.
+3. Explicit constants for the default discretization (s₀=1, t₀=4, B₀=4):
+   ε₀ = 3√2/8 ≈ 0.53, per-level radian shift ≤ 0.53·2⁻ⁿ; a bin-misalignment
+   table vs n; and the coverage-sliver fraction |A|/|Ω_b| as a computed
+   geometric integral (currently order-only). The ρ=0 leak calibration
+   (~27–35% ≈ ε₁) stays calibrated, not derived.
+4. Windowed-lookup (Prop W) implementation and its measured cost/benefit —
+   an M2+/3D-version item.
+5. Further items in [integrand-mismatch.md](integrand-mismatch.md) §9 and
+   [variance.md](variance.md) §5.
