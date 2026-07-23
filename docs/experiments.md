@@ -205,7 +205,7 @@ the same move production renderers make on disocclusion.
 | config | S1 leak %vanilla | S2 recovery |
 |---|---|---|
 | ρ=0.25 | 21.4% ± 4.4 | **99.4% ± 6.0** (was 86.2 with a systematic deficit) |
-| **ρ=0.5 (new recommended)** | **10.7% ± 2.4** ✓ | **94.0% ± 6.1** ✓ |
+| **ρ=0.5 (new recommended)** | **10.7% ± 2.4** ✓ | **93.5% ± 6.2** ✓ |
 | ρ=1 | ~0% (≤0.2%) | — (~90%, not fully swept) |
 
 ### Two recommended configs
@@ -254,8 +254,9 @@ level-3 parents sit closer than 84px to the wall, so the parents' own
 interval [84,340) **starts beyond the wall** — their rays hit the source
 untested and store bright samples; the child chain reconnects that energy
 in, and at ρ=0 nothing ever checks p→y. Blob periodicity = parent-grid
-beat. This is precisely Lemma C's annulus band + GRIS's unoccluded-target
-gap, made visible.
+beat. This is precisely the annulus band of
+[theory/integrand-mismatch.md](theory/integrand-mismatch.md) Lemma C plus
+GRIS's unoccluded-target gap, made visible.
 
 Suppression check (leak pixels inside the t₃ band): ρ=0 no-jitter 604;
 ρ=0.5 no-jitter 298 (−51%); ρ=0 block-8 jitter 306 (−49%; more pixels but
@@ -264,6 +265,35 @@ dimmer — a literal bias→variance demonstration); at ρ=1 total leak ~0.1%.
 Disposition: not a bug but an exhibit — the demo's explainer gained a
 "Try this: drag ρ to 0" paragraph presenting the arc as a live
 demonstration of the paper's central failure mode.
+
+## E12 — Figure sweeps: ρ- and cap-dependence (2026-07-23)
+
+The data behind the paper's measurement figures; every number regenerable
+via `build/rc` (commands in the repo history).
+
+**ρ sweep** (128², frames=128, block-8 jitter, temporal, seeds 1–6,
+mean±sd; S1 leak as % of vanilla's, S2 recovery as % of reference):
+
+| ρ | 0 | 0.125 | 0.25 | 0.375 | 0.5 | 0.75 | 1 |
+|---|---|---|---|---|---|---|---|
+| S1 leak % | 35.3±8.2 | 27.8±5.9 | 21.4±4.5 | 15.8±3.4 | 10.7±2.4 | 3.7±0.9 | 0.1±0.1 |
+| S2 recovery % | 107.2±5.9 | 103.0±5.8 | 99.4±6.1 | 96.0±6.0 | 93.5±6.2 | 89.2±6.5 | 86.4±6.9 |
+
+Note: this jittered config's ρ=0 leak (35.3%) exceeds E5's no-jitter 27% —
+the split ensemble includes leakier splits; both are ≈ ε₁ in order. (The
+E9 summary's ρ=0.5 recovery is corrected here to 93.5±6.2; an earlier
+aggregation reported 94.0.)
+
+**Cap sweep** (S3 static segment, block=∞, frames=192, ρ=0.25):
+
+| cap | 2 | 4 | 8 | 16 | 32 | 64 |
+|---|---|---|---|---|---|---|
+| flicker CV | 1.330 | 1.096 | 0.853 | 0.724 | 0.558 | 0.395 |
+| L0 lag-1 autocorr | 0.645 | 0.769 | 0.848 | 0.887 | 0.905 | 0.918 |
+
+Log-log fit of flicker vs (1+cap): exponent ≈ 0.38±0.05 (the AR(1) model
+of [theory/variance.md](theory/variance.md) §4 predicts ½ and the direction
+of every deviation).
 
 ## Go/No-Go tracking (proposal §9; decided at end of M2)
 

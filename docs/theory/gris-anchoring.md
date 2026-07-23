@@ -1,11 +1,11 @@
 # GRIS anchoring — the merge as a Generalized RIS instance
 
-Status: v0.1, 2026-07-23. Discharges TODO item 3 of [lemma-3_2.md](lemma-3_2.md):
-"the GRIS anchoring must cite their Theorem's exact conditions rather than
-paraphrase." All equation numbers below are Lin, Kettunen, Bitterli,
-Pantaleoni, Yuksel & Wyman 2022 (SIGGRAPH; "GRIS"). This document was
-cross-checked by independent re-derivation + adversarial audit; where my
-first-pass sketch in lemma-3_2.md §5–6 was wrong, the corrected statement is
+Status: v0.1, 2026-07-23. Companion to [lemma-3_2.md](lemma-3_2.md) (see
+its header note for project context): this note supplies the GRIS
+correspondence used by its §6 — anchoring the cascade merge to the exact
+conditions of the GRIS theorems rather than a paraphrase. All equation
+numbers below are Lin, Kettunen, Bitterli, Pantaleoni, Yuksel & Wyman 2022
+(SIGGRAPH; "GRIS"). Statements that reverse an earlier internal draft are
 flagged **[CORRECTION]**.
 
 ## 1. The correspondence (per probe p, child bin b, level n)
@@ -22,7 +22,7 @@ flagged **[CORRECTION]**.
 | shift T_i | reconnection T_{q→p}: keep y_q, set ω_p = dir(p→y_q) |
 | Jacobian \|∂T_i/∂X_i\| | J_q = r_q/r_p = \|y_q−q\|/\|y_q−p\| (2D, first power); =1 if no y |
 | UCW W_i | W_q, parent stored UCW (layered — W already collapsed at parent) |
-| resampling MIS m_i | m_q = (valid_q ∧ βΣ>0) ? β_q/βValidSum : 0 |
+| resampling MIS m_i | m_q = (valid_q ∧ β_S>0) ? β_q/β_S : 0, β_S := Σ_{q∈S}β_q |
 
 Then w_q = m_q·p̂(c_q)·J_q·W_q is **Eq (19) term for term**; selection s ∝ w_q
 with W_sel = (Σ_q w_q)/p̂(c_sel) is **Eq (22)** (the ideal m=c form); the tail
@@ -30,17 +30,18 @@ is c_sel·W_sel and L̂_bin = c_near + tail. The selection identity
 
     E_sel[ tail | samples ] = Σ_q m_q J_q W_q c_q          (p̂ cancels exactly)
 
-holds and was reproduced independently (it is the workhorse of Prop V).
+holds (it is the workhorse of Prop V, [lemma-3_2.md](lemma-3_2.md) §5).
 
 **[CORRECTION] two fixes to the naive correspondence:**
 1. **D(T_q) is only the bijection domain.** Per Def 4.2, D(T_q) = the subset of
    Ω_q on which reconnection is a well-defined bijection (operationally:
    hasY_q). The support test p̂(Y_q)>0 is a *separate* condition (Eq 13/§4.3):
-   w_q>0 iff X_q∈D(T_q) **and** p̂(Y_q)>0. My lemma-3_2.md sketch folded p̂>0
-   into D(T_q); that conflates the shift domain with the target support.
+   w_q>0 iff X_q∈D(T_q) **and** p̂(Y_q)>0. An earlier draft folded p̂>0 into
+   D(T_q); that conflates the shift domain with the target support.
 2. **p̂(T_q X_q) is realized as p̂(c_q) only off the penumbra set.** The stored
    radiance c_q equals the target-domain radiance at Y_q exactly because
-   reconnection re-anchors to the same emitter point (Lemma 3.2.I) — exact off
+   reconnection re-anchors to the same emitter point (Lemma 3.2.I,
+   [integrand-mismatch.md](integrand-mismatch.md)) — exact off
    P', not everywhere.
 
 ## 2. Which GRIS conditions hold, which fail
@@ -74,9 +75,9 @@ holds and was reproduced independently (it is the workhorse of Prop V).
      level's collapse is an expectation-preserving resolve), and (ii) temporal
      M-averaging keeping realized W near 1. The dark-selected-against-bright
      spike (probability ∝ w_dark/Σw, so rare but heavy-tailed) is the likely
-     theory-side account of the observed spatially-correlated W-noise. A
-     chain-variance recursion replacing the a.s. bound is the top open theory
-     item (§6).
+     theory-side account of the observed spatially-correlated W-noise (lab
+     log E4). The chain-variance recursion replacing the a.s. bound is given
+     in [variance.md](variance.md) §3 (Theorem V).
 - **Eq (19) weight form and Eq (22) UCW form:** hold term for term.
 - **The technique/domain correspondence** (parents = techniques, parent bins =
   Ω_i, reconnection T_{q→p} with Jacobian r_q/r_p): legitimate under Def 4.2.
@@ -90,9 +91,9 @@ holds and was reproduced independently (it is the workhorse of Prop V).
   into an *unconsulted* parent bin; for ω∈A no technique realizes Y, so
   supp Y = Ω_b∖A ⊊ Ω_b = supp p̂. See §3 for the bias.
 - **Eq (17)/(20) partition of unity: FAILS as a GRIS certification.**
-  **[CORRECTION — reverses my lemma-3_2.md §5 sketch.]** I claimed the
+  **[CORRECTION over an earlier draft]**, which claimed the
   β-renormalization *is* Eq 17/20's "restrict to realizing techniques". It is
-  not. Arithmetically Σ_{q∈S} β_q/βΣ = 1, but S = {q : valid_q} is the *shadow-
+  not. Arithmetically Σ_{q∈S} β_q/β_S = 1, but S = {q : valid_q} is the *shadow-
   ray validation-survivor* set (visibility-determined, y-independent), whereas
   GRIS's realizing set is {q : y ∈ T_q(supp X_q)} (support-determined, per-y).
   **Occlusion ≠ non-realization.** Two concrete defects:
@@ -109,7 +110,7 @@ holds and was reproduced independently (it is the workhorse of Prop V).
   with the legal Eq 20 restriction only in the degenerate ρ=0 / uniform-
   coverage case.
 - **Estimand identity f(Y) = stored c_s: FAILS off the emitter-anchored
-  regime.** The tail carries the *parent's* visibility V(q,y) via c_s, so the
+  regime.** The tail carries the *parent's* visibility V(q,y) via c_sel, so the
   merge evaluates f_parent(Y), not f_p(Y) = V(p,y)·radiance. They differ exactly
   on P' (|P'| ≤ C₁(K+K_t)ε_n) and where a p→y blocker was invisible to q. This
   is the shadow leak — the structural gap (§4).
@@ -124,22 +125,23 @@ Eq (15): supp Y = supp p̂ ∩ ∪_q T_q(supp X_q). Since
 GRIS (Eq 16) then makes the estimator unbiased for ∫_{supp Y} f, hence **biased
 for the target ∫_{supp p̂} f by exactly**
 
-    bias = ∫_{supp Y} f − ∫_{supp p̂} f = − ∫_A L_{≥n}(p,ω) dω,   A = supp p̂ ∖ supp Y.
+    bias = ∫_{supp Y} f − ∫_{supp p̂} f = − ∫_A L_{≥n+1}(p,ω) dω,   A = supp p̂ ∖ supp Y.
 
 The sign is **always negative** (missing support only removes energy);
 |A|/|Ω_b| = O(ε_n), ε_n ≤ ε₀·2⁻ⁿ. Only the order and sign are pinned; the
 parallax-to-bin-width constant is not derived. Consistent with the measured
-lit-region deficit −2.2% at ρ=1 as an order-of-magnitude check (**not** a
+lit-region deficit −2.2% at ρ=1 (lab log E2/E5, S1) as an order-of-magnitude
+check (**not** a
 derived value, and **not** on the same axis as the shadow-leak sequence — see
 Prop V).
 
 ## 4. The single structural gap, and the GRIS authors' own account of it
 
 **The gap:** the merge never re-evaluates the shifted integrand f(Y) under
-probe p's *own* visibility; it deposits the stored parent radiance c_s as-is
+probe p's *own* visibility; it deposits the stored parent radiance c_sel as-is
 (value-passing / layered RIS). GRIS Eq (16) demands f(Y)·W_Y at the shifted
-sample; ours substitutes c_s·W_sel. By Lemma 3.2.I, reconnection re-anchors to
-the same emitter point, so c_s = f(Y) *exactly* off the penumbra set P'; the gap
+sample; ours substitutes c_sel·W_sel. By Lemma 3.2.I, reconnection re-anchors to
+the same emitter point, so c_sel = f(Y) *exactly* off the penumbra set P'; the gap
 is nonzero only on P' and where a p→y blocker was invisible to q — the shadow
 leak. The ρ-Bernoulli shadow ray over [t_{n+1}, |y−p|) is an approximate,
 stochastic version of the missing V(p,y) re-evaluation, which is why ρ→1 nearly
@@ -157,7 +159,7 @@ leftover is "often imperceptible bias" and gives **no bound**.
 
 **Our contribution is the bound GRIS's Appendix B invites:** in the cascade the
 penumbra condition pins this visibility-coverage bias to O(ε_n) = O(ε₀2⁻ⁿ) per
-level, summable to < 2ε₀ over the whole cascade independent of depth.
+level, summable to < 3ε₀ over the whole cascade independent of depth.
 
 **Canonical samples (GRIS §5.5, Thm A.4).** GRIS Thm A.4 needs |R| ≥ 1 canonical
 samples (an importance sampler that directly targets p̂ with identity shift, so
@@ -171,10 +173,10 @@ automatic coverage. This is precisely why (a) coverage can fail (Prop C) and
 one line: **the cascade tail merge trades the canonical sample for the penumbra
 bound.**
 
-## 5. Summary — three separable deficiencies (not two)
+## 5. Summary — three separable deficiencies
 
-A fully-unbiased GRIS instance of the merge would need *both* of the following
-fixed; my first sketch conflated them:
+A fully-unbiased GRIS instance of the merge would need *both* of the
+following fixed — they are distinct (an earlier draft conflated them):
 
 1. **Coverage (Eq 15, Prop C)** — a *geometrically fixable* O(ε_n) deficit,
    negative sign. Remedy: widen the consulted-bin neighbourhood (windowed
@@ -199,8 +201,8 @@ listed here, are resolved in [variance.md](variance.md) and
 
 1. The geometric constant of |A|/|Ω_b| for the axis-aligned grid (a
    computable integral over content depth — would upgrade one order-only
-   claim to an exact constant); the leak's ~27–35%≈ε₁ calibration stays
-   calibrated.
+   claim to an exact constant); the leak's ~27–35%≈ε₁ calibration (E5 /
+   E12 configs) stays calibrated.
 2. Unanimity under inter-parent correlation: the union bound over
    per-parent sliver events is correlation-robust (shared grandparents only
    *help* unanimity); state this explicitly in Prop V.

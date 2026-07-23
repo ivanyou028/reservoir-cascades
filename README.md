@@ -18,7 +18,7 @@ theorem, not a tuning knob.
   behind the paper's §5 (GRIS anchoring, integrand-mismatch, variance,
   temporal AR(1) model)
 - **Lab log:** [docs/experiments.md](docs/experiments.md) — every experiment
-  with configs and seeds (E1–E10)
+  with configs and seeds (E1–E12)
 
 ## Quick start
 

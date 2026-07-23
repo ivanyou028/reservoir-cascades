@@ -1,6 +1,9 @@
 # Lemma 3.2.I — Integrand mismatch under reconnection: full proof
 
-Status: v0.1, 2026-07-23. Discharges TODO item 1 of [lemma-3_2.md](lemma-3_2.md).
+Status: v0.1, 2026-07-23. Proves the shifted-integrand mismatch bound
+consumed by [lemma-3_2.md](lemma-3_2.md) §6, where it is cited as
+**Lemma 3.2.I** (see that document's header note for project context,
+"the proposal", E-numbers, and the scenes S1–S3).
 Proofs are complete for polygonal scenes; the smooth-obstacle case carries a
 √ε term from grazing corridors (Lemma G) that may be improvable.
 
@@ -14,7 +17,8 @@ and F_x(ω) := E(h(x,ω)), the emission at that point (emitters
 view-independent; escape ⇒ F = 0, sky constant handled trivially).
 
 **Shift.** T = T_{q→p} maps ω to dir(p → h(q,ω)) where h exists; identity
-on escape directions. J(ω) is the reconnection Jacobian (Lemma J).
+on escape directions. J(ω) is the reconnection Jacobian (Lemma J,
+[lemma-3_2.md](lemma-3_2.md) §1).
 
 **Quantity to bound.** The GRIS-facing mismatch on q's bin domain Ω:
 
@@ -23,7 +27,8 @@ on escape directions. J(ω) is the reconnection Jacobian (Lemma J).
 **Sliver.** For a hit direction ω with y = h(q,ω), r = |y−q|, define
 Σ(ω) := conv hull region bounded by the segments R_q = [q+tω, y],
 R_p = [p + t·T(ω), y], and the endpoints arc. Σ has apex y, length ≤ r, and
-width ≤ 2d everywhere (endpoint separation ≤ d + t·|T(ω)−ω| ≤ 2d by Lemma D).
+width ≤ 2d everywhere (endpoint separation ≤ d + t·|T(ω)−ω| ≤ 2d by
+Lemma D, [lemma-3_2.md](lemma-3_2.md) §2).
 
 **Penumbra set.** P := { ω ∈ Ω hit : h(p, T(ω)) ≠ h(q, ω) } — directions
 where p and q disagree on the far hit (includes "y inside p's near disc").
@@ -44,7 +49,7 @@ obstacle containing z is disjoint from R_q (hit-free) — but ¬(a) says its
 boundary avoids Σ\{y}; a connected obstacle touching ∂Σ at z with boundary
 avoiding Σ's interior and the opposite wall R_q must still cross ∂Σ near z
 into Σ (obstacles have nonempty interior on the z side), contradiction. ∎
-(TODO: the last step deserves a pedantic epsilon-neighborhood argument;
+(The last step deserves a pedantic ε-neighborhood argument — see §9; the
 content is elementary planar topology.)
 
 ## 3. Lemma B (corridor measure)
@@ -79,8 +84,9 @@ transversality (assumption A5 below) bounds csc by a constant. ∎
 
 Remark. This is precisely the band that the interval-boundary jitter (E9)
 randomizes: under block jitter the deterministic band becomes a
-zero-mean perturbation across blocks. Formalizing that statement is TODO
-item 4 (piecewise-stationary MIS).
+zero-mean perturbation across blocks. Formalizing that statement is an open
+item ([lemma-3_2.md](lemma-3_2.md) §7, temporal penumbra /
+piecewise-stationary MIS).
 
 ## 5. Lemma G (grazing control; polygonal vs smooth dichotomy)
 
@@ -97,10 +103,10 @@ directions hitting a given edge at angle < θ_c form a band of measure
 (ii) **Smooth strictly-convex obstacles** (curvature ∈ [κ₋, κ₊], e.g.
 circles of radius R = 1/κ). A hit with cos θ_q ≤ c has impact parameter
 within R·c²/2 of the silhouette, an ω-band of measure ≤ R c²/(2t) per
-silhouette. On the complement, |J−1| ≤ ε_n·(1 + tan θ_max) ≤ ε_n·(2/c).
-Balancing c := ε_n^{1/2}:
+silhouette. On the complement, |J−1| ≤ ε_n·(2 + tan θ_max) (Lemma J's
+constant) ≤ 3·ε_n/c. Balancing c := ε_n^{1/2}:
 
-    grazing-band measure ≤ K·R·ε_n/(2t),   |J−1| ≤ 2·ε_n^{1/2} off it.
+    grazing-band measure ≤ K·R·ε_n/(2t),   |J−1| ≤ 3·ε_n^{1/2} off it.
 
 So smooth obstacles cost a **√ε_n Jacobian bound** (or an ε_n-measure
 exclusion — either way the aggregate mismatch picks up O(K·√ε_n)).
@@ -110,8 +116,11 @@ the S2/S3 circles → case (ii).
 
 ## 6. Theorem I (integrand mismatch)
 
+(This is the result cited as **Lemma 3.2.I** from the other notes.)
+
 Assumptions: (A1) finite scene, ≤K silhouette arcs, ≤K_t transversal
-t-circle crossings, emission ≤ L_max; (A5) no boundary arc tangent to the
+t-circle crossings, emission ≤ L_max; (A2)–(A4) as in
+[lemma-3_2.md](lemma-3_2.md) §6; (A5) no boundary arc tangent to the
 t-circle (transversality; violated on a measure-zero set of t, and the
 boundary jitter makes t random anyway).
 
@@ -125,8 +134,9 @@ Then with P' := P ∪ (grazing bands),
 *Proof.* Off P': same hit point ⇒ F_p(T(ω)) = E(y) = F_q(ω) exactly — the
 entire off-penumbra error is the Jacobian factor (note: NO Lipschitz term;
 reconnection re-anchors to the identical emitter point, so emitter texture
-never enters). Lemma J with Lemma G controls η. On P': both terms bounded
-by L_max·max(J,1) ≤ 3L_max/... and Lemmas A–C bound the measure. ∎
+never enters). Lemma J with Lemma G controls η. On P':
+|F_p(Tω)·J| + |F_q(ω)| ≤ L_max·(J+1) ≤ 3·L_max (J ≤ 2 for small ε_n off
+the grazing bands of Lemma G), and Lemmas A–C bound the measure. ∎
 
 ## 7. GRIS-facing corollary and the role of λ
 
@@ -135,18 +145,22 @@ w = m·p̂_p(T x)·J·W. Theorem I gives p̂_p(Tx)·J ≤ (L_max + λ)(1 + C₂�
 everywhere, and off P' the ratio p̂_p(Tx)J/p̂_q(x) ∈ [1−Cε^γ, 1+Cε^γ].
 On P' the ratio is arbitrary — but the defensive term λ > 0 in p̂ bounds
 W ≤ (Σw)/λ, so P' contributes bounded-variance mass proportional to its
-measure O(K·ε_n). This is the precise sense of the proposal's "the penumbra
-region is backstopped by MIS": λ-defensiveness converts the unbounded penumbra ratio
-into O(K·ε_n) extra variance. Per-level, summable: Σ_n ε_n < 2ε₀.
+measure O(K·ε_n). This is the precise sense in which the design-stage claim "the penumbra
+region is backstopped by MIS" (internal proposal — see the
+[lemma-3_2.md](lemma-3_2.md) header note) holds: λ-defensiveness converts the unbounded penumbra ratio
+into O(K·ε_n) extra variance. Per-level, summable: Σ_n ε_n < 3ε₀.
 
 ## 8. Consistency check against measurements
 
-Defaults s₀=1, t₀=4, B₀=4 ⇒ ε₀ ≈ 0.53. S1's leak zone sits at chain levels
+(Scene shorthand: S1 = thin-bar occluder + box light, polygonal; S2/S3 use
+circular emitters — see the lab log. "Vanilla" = deterministic RC
+baseline; measurements from E5.) Defaults s₀=1, t₀=4, B₀=4 ⇒ ε₀ ≈ 0.53. S1's leak zone sits at chain levels
 1–2 (ε ≈ 0.27–0.13); silhouettes: bar 4 + light 4 ⇒ K ≈ 8. Predicted
 penumbra fraction C₁Kε/(2π) ~ 0.1–0.3 → the un-validated (ρ=0) leak should
 be a noticeable-but-fractional share of vanilla's, and validation-corrected
 runs should sit within a few percent of reference — consistent with
-measured 27%-of-vanilla (ρ=0) and −2.2% (ρ=1, Prop V bias). Order-of-
+measured 27%-of-vanilla leak (ρ=0; E5) and −2.2% lit deficit (ρ=1; E2/E5 —
+the Prop V bias, [lemma-3_2.md](lemma-3_2.md) §5). Order-of-
 magnitude only; the constants are loose by design.
 
 ## 9. Remaining gaps
@@ -156,4 +170,5 @@ magnitude only; the constants are loose by design.
 - Smooth-case √ε: prove tightness or improve.
 - Aggregate-vs-per-bin: Theorem I is a full-circle statement; per-bin the
   worst bin can be entirely penumbral. The estimator-level consequence
-  (bounded W via λ) is per-bin safe; state this explicitly in the paper.
+  (bounded W via λ) is per-bin safe; this deserves an explicit statement
+  in any formal write-up.

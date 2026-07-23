@@ -1,9 +1,18 @@
 # Lemma 3.2 — Penumbra condition ⇒ bounded shift distortion
 
+> **Context.** These notes accompany the Reservoir Cascades project (see the
+> repo README): a Radiance Cascades merge re-cast as ReSTIR/GRIS-style
+> resampling. References of the form "proposal §x" (including this document's
+> own number, 3.2) point to the project's internal proposal document, not
+> included in this repo. E-numbers cite the [lab log](../experiments.md);
+> scenes S1 (thin occluder), S2 (pinhole + sub-bin source), S3 (dynamic
+> light) are defined there and in `scenes/`. "Vanilla" = the deterministic
+> RC baseline. ρ ∈ [0,1] is the validation probability (defined in §5).
+
 Status: v0.1, 2026-07-22. Statements and proof sketches; items marked TODO
 need the full ε-δ treatment for the paper. This document supersedes proposal
 §3.2 where they disagree (notably: the O(1)-bin claim is FALSE under ×4
-angular branching — see Prop. 3 — and the E2/E3 empirics are now theory).
+angular branching — see Lemma D, §2 — and the E2/E3 empirics are now theory).
 
 ## 0. Setup and notation
 
@@ -19,7 +28,11 @@ Cascade discretization, all lengths in pixels:
 
 Key ratio (the "penumbra scale" of the discretization):
 
-    ε_n := √2·s_{n+1} / t_{n+1}  ≤  (3√2·s₀/t₀)·2⁻ⁿ⁻¹ =: ε₀·2⁻ⁿ
+    ε_n := √2·s_{n+1}/t_{n+1} = (3√2·s₀/t₀)·2ⁿ⁺¹/(4ⁿ⁺¹−1) ≤ (4/3)·ε₀·2⁻ⁿ,
+    ε₀ := 3√2·s₀/(2t₀)
+
+(the 4/3 — attained at n=0 — is absorbed into the O(·)s below; note
+Σ_n ε_n < (8/3)ε₀ < 3ε₀, the bound used by the assembled theorem)
 
 √2·s_{n+1} bounds the child-to-parent displacement d = |p−q| (bilinear
 support = parent-cell diagonal). ε_n decays geometrically: RADIAN-scale
@@ -38,7 +51,7 @@ to q, p) is
 
 **Claim.** If θ_q ≤ θ_max (non-grazing), then
 
-    J = 1 + O(ε_n),  explicitly  |J − 1| ≤ ε_n·(1 + (1+tanθ_max)) + O(ε_n²).
+    J = 1 + O(ε_n),  explicitly  |J − 1| ≤ ε_n·(2 + tanθ_max) + O(ε_n²).
 
 *Proof sketch.* |r_q/r_p − 1| ≤ d/r_p ≤ ε_n/(1−ε_n). The angle at y between
 directions to p and q is φ ≤ arcsin(d/r_q) ≤ ε_n(1+O(ε_n)); then
@@ -47,9 +60,10 @@ directions to p and q is φ ≤ arcsin(d/r_q) ≤ ε_n(1+O(ε_n)); then
 Remarks. (i) The implementation uses J ≈ r_q/r_p (cos ratio dropped): same
 O(ε_n) bound, and for view-independent emitters the dropped factor only
 perturbs the *proposal* weights, not sample values — efficiency, not bias.
-(ii) The grazing set {θ_q > θ_max} has direction-measure O(K·(π/2−θ_max)⁻¹…):
-TODO formalize via the silhouette-count assumption; in GRIS terms these
-samples get bounded-but-large J and are handled by the confidence weights.
+(ii) The grazing set {θ_q > θ_max} has small direction-measure (quantified
+for polygonal vs smooth obstacles in [integrand-mismatch.md](integrand-mismatch.md)
+Lemma G); in GRIS terms these samples get bounded-but-large J and are
+handled by the confidence weights.
 
 ## 2. Lemma D (direction shift, two unit systems)
 
@@ -61,27 +75,29 @@ so the radian shift decays 2⁻ⁿ. In *bin units* at the parent level:
 
 **δ_n grows 2ⁿ.** Proposal §3.2's "bounded within O(1) angular bins" holds
 only for B_n ∝ 2ⁿ branching; under the standard ×4 branching the shift is
-unbounded in bin units. (Empirically ~4–11 bins at n=3, experiments E3.)
+unbounded in bin units. (Empirically ≈4 bins at n=3 — lab log [E3](../experiments.md); the δ_n
+bound above allows up to ~11.)
 
 ## 3. Proposition R (reprojection residual)
 
 Select the parent bin by the direction from q to the alignment point
-z = p + t_c·ω, t_c = √(t_{n+1}t_{n+2}) (geometric mean, g := t_c/t_{n+1} = 2).
+z = p + t_c·ω, t_c = √(t_{n+1}t_{n+2}) (geometric mean, g := t_c/t_{n+1} ≈ 2).
 For content at true depth r ∈ [t_{n+1}, ∞) along ω, the residual bin
 misalignment is
 
     δ'_n(r) ≤ (B_{n+1}/2π) · d · |r − t_c| / (r·t_c),
 
 which vanishes at r = t_c and is worst at the interval start:
-δ'_n(t_{n+1}) = δ_n·(1 − 1/g) = δ_n/2.
+δ'_n(t_{n+1}) = δ_n·(1 − 1/g) ≈ δ_n/2.
 
 Consequences: (i) reprojection cancels parallax exactly at one depth and
 helps most where content clusters near t_c; worst case improves only by the
 constant (1−1/g); (ii) asymptotically δ'_n still grows 2ⁿ under ×4 branching
-— reprojection buys practical cascade depths (N ≤ 6–7 with our constants
-keeps δ' ≲ 1–2 bins), not asymptotics. The asymptotic fixes are ×2 branching
+— reprojection buys practical cascade depths (with the E3 calibration,
+δ' stays ≲2 bins through n ≈ 3–4, covering our prototypes' N = 4–5
+levels; the 2ⁿ growth resumes beyond), not asymptotics. The asymptotic fixes are ×2 branching
 (alignment-safe, resolution-poor) or windowed multi-bin lookup with MIS
-(Prop. 4 remedy). This is a genuine design axis of the discretization.
+(Prop W remedy, §4). This is a genuine design axis of the discretization.
 
 ## 4. Proposition C (bin misalignment is coverage BIAS, not variance)
 
@@ -90,7 +106,8 @@ every *consulted* sample a valid sample of p's field (value re-anchored, J
 accounted), so misalignment never corrupts values. What it corrupts is
 *coverage*: content lying, from the parent's vantage, in a bin that is never
 consulted contributes zero proposal mass, and no MIS term compensates —
-a systematic energy deficit (measured: 2× column striping, E3/E4).
+a systematic energy deficit (measured: 0.4–1.3× column striping, E3;
+~1.3×/~0.7× residual banding, E4).
 
 Formally: let A ⊂ Ω_b be the direction subset of the child bin whose
 generating content falls outside the consulted parent bins. Then the merge
@@ -101,7 +118,8 @@ jitter (converts the *radial* analogue of this gap into variance — E9).
 
 ### Proposition W (windowed lookup restores coverage — the LEGAL renormalization)
 
-Consult, per parent q, the bins {bp_q−w, …, bp_q+w}. Say parent q *covers*
+Consult, per parent q, the bins {bp_q−w, …, bp_q+w}, where
+bp_q := binOf(n+1, dir(q→z)) is the reprojected parent bin of Prop R. Say parent q *covers*
 direction y iff b*_q(y) := binOf(n+1, dir(q→y)) lies in q's window — a
 purely geometric, deterministic predicate, computable at merge time from the
 candidate's own y. Use MIS weights
@@ -119,15 +137,20 @@ renormalization is not, because occlusion ≠ non-realization.
 covered_q ≡ 1 for all q, m_q = β_q, and supp Y = supp p̂ — the Eq 15
 violation of Prop C closes and the −∫_A L deficit vanishes.
 (iii) Cost: (2w+1) reservoir *reads* per parent, no extra rays. With our
-defaults, Prop R gives δ' ≲ 1–2 bins through N ≤ 7, so w = 1–2 suffices at
-3–5× read cost. Partial windows (w < δ'^max) remain unbiased on the covered
+defaults, Prop R keeps δ' ≲ 2 bins through n ≈ 3–4 (our prototypes'
+depths), so w = 1–2 suffices there at 3–5× read cost; beyond, w must grow
+∝ 2ⁿ. Partial windows (w < δ'_n^max) remain unbiased on the covered
 set with the residual deficit shrunk to the still-uncovered sliver.
 
 ## 5. Proposition V (renormalized validation — bias analysis)
 
-Full derivation cross-checked by independent re-derivation + adversarial audit;
-the arguments below **replace** the earlier sketch, two steps of which were
-wrong (flagged **[was wrong]**). GRIS eq numbers per
+Throughout, ρ ∈ [0,1] is the *validation probability*: at each merge, with
+probability ρ a shadow ray from the child probe p re-checks visibility of
+each parent's stored vertex y_q; valid_q is the outcome and S = {q : valid_q}
+the survivor set (ρ=0: never validate; ρ=1: always). The derivation below is
+complete at proof-sketch level and was re-derived independently from
+scratch; two steps of an earlier sketch were wrong and are retained, flagged
+**[was wrong]**, so the reader can see what changed. GRIS eq numbers per
 [gris-anchoring.md](gris-anchoring.md).
 
 **Central identity (exact).** Condition on the survivor set S = {q : valid_q}.
@@ -142,16 +165,16 @@ the p̂ factor cancels:
 **Renorm-before vs kill-after.**
 - *Renorm-before-select* (ours): m_q = β_q/β_S, β_S := Σ_{q∈S} β_q. Then
   (†) = Σ_{q∈S} (β_q/β_S) J_q W_q c_q — weights summing to 1.
-- *Kill-after-select* (reverted): m_q = β_q over ALL four, select, then zero an
+- *Kill-after-select* (an earlier implementation, since removed — lab log
+  E2): m_q = β_q over ALL four, select, then zero an
   occluded selection. Then (†) = Σ_{q∈S} β_q J_q W_q c_q = **β_S · (renorm
   estimate) = v_p · (renorm estimate)**, where v_p = β_S is the *visible-β
   fraction*. So kill-after bias = −(1−v_p)·L_tail, an **O(1) multiplicative
-  shrink**. (Measured: S1 lit −16% ⇒ v_p≈0.84; S2 room −33% ⇒ v_p≈0.67.)
+  shrink**. (Measured, E2: S1 lit −16% ⇒ v_p≈0.84; S2 room −33% ⇒ v_p≈0.67.)
 
 Toy model (2 parents, β=½ each, W=J=1, common p̂ ⇒ c₁=c₂, parent 1 visible from
 p, parent 2 occluded, target = c₁): renorm-before ⇒ S={1}, m₁=1 ⇒ E[tail]=c₁
-(exact); kill-after ⇒ ½·c₁ + ½·0 = ½c₁ (−50% = ×v_p). Confirmed by independent
-recomputation.
+(exact); kill-after ⇒ ½·c₁ + ½·0 = ½c₁ (−50% = ×v_p).
 
 **Crux: is the renorm-before residual truly O(ε_n)?** Yes — but the two easy
 justifications are both **wrong**, and the correct argument needs a hypothesis.
@@ -173,7 +196,9 @@ justifications are both **wrong**, and the correct argument needs a hypothesis.
   **+87% O(1) OVER-count**. This needs an emitter with O(1) sampling mass in an
   O(ε_n) strip, i.e. *unbounded* radiance density.
   *Resolution:* under the **bounded-radiance / reasonable-distribution premise**
-  (Def 5.1 / Eq 27, C_f ≈ (L_max+λ)/λ), the radiance-weighted probability of
+  (Def 5.1 / Eq 27; per-level factor C_λ = (L_max+λ)/λ — see
+[gris-anchoring.md](gris-anchoring.md) §2 for why the a.s. C_f compounds
+with depth), the radiance-weighted probability of
   storing a sample in the O(ε_n) strip is itself O(ε_n), so S is unanimous
   w.p. 1−O(ε_n) and the residual collapses to O(L_max·ε_n) = O(ε_n).
 
@@ -189,11 +214,14 @@ is a literal convex combination and
 
 with bias_novalid = leak = +O(ε_n) (energy deposited where p is shadowed, from
 reused c) and bias_renorm = −O(ε_n). Both O(ε_n) ⇒ bias(ρ) = O(ε_n) for all ρ.
-**Numeric honesty (audit):**
-- The shadow-leak sequence is 27 / 19.3 / 10.7 / ~0 % at ρ = 0 / .25 / .5 / 1.
-  Pure single-merge linearity predicts 27 / 20.25 / 13.5 / 0 — endpoints exact,
-  interior *over*-predicted. The measured leak is **convex / faster-than-linear**;
-  27·(1−ρ)^1.33 fits the interior better.
+**Numeric consistency:**
+- The shadow-leak sequence (S1 E(shadow) as % of vanilla's) is
+  27 / 19.3 / ~0 % at ρ = 0/.25/1 (lab log E5: single seed, no boundary
+  jitter); the jittered multi-seed config gives 35.3 / 21.4 / 10.7 / 0.1 %
+  at ρ = 0/.25/.5/1 (E12). Against either config, single-merge linearity
+  over-predicts the interior (e.g. E5: 27 → predicted 20.25 vs measured
+  19.3): the measured decay is **convex / faster-than-linear**, and
+  27·(1−ρ)^1.33 fits the E5 interior better.
 - The bow is a genuine second-order effect (cascade compounding across the ~2
   leak-zone levels → a (1−ρ)² admixture, OR within-merge survivor/c-value
   correlation) but does **not** uniquely fingerprint the mixture — the data does
@@ -206,8 +234,9 @@ reused c) and bias_renorm = −O(ε_n). Both O(ε_n) ⇒ bias(ρ) = O(ε_n) for 
 
 Kill-after vs renorm-before, in one line: kill-after normalizes over all four
 (weights sum to v_p<1 ⇒ O(1) shrink); renorm-before normalizes over survivors
-(weights sum to 1 ⇒ O(ε_n) under bounded radiance). This is why the reverted
-kill-after variant lost 16–33% and the shipped renorm-before loses ~2%.
+(weights sum to 1 ⇒ O(ε_n) under bounded radiance). This is why the
+kill-after variant (since removed) lost 16–33% and the current
+renorm-before implementation loses ~2%.
 
 ## 6. Theorem (per-level reuse soundness — assembled)
 
@@ -220,7 +249,11 @@ J = 1 + O(ε_n), radian shift O(ε_n), and the shifted-integrand mismatch
 (Lemma 3.2.I, [integrand-mismatch.md](integrand-mismatch.md))
 
     ∫ |f_p∘T·J − f_q| dω ≤ L_max·(C₂·ε_n^γ·|Ω| + 3C₁·(K+K_t)·ε_n),
-    γ = 1 (polygonal) or ½ (smooth obstacles, grazing corridors).
+    γ = 1 (polygonal) or ½ (smooth obstacles, grazing corridors)
+
+(K_t = transversal obstacle-boundary crossings of the radius-t_{n+1}
+circle; C₁, C₂ absolute constants — all per
+[integrand-mismatch.md](integrand-mismatch.md)).
 
 Consequently (anchoring to GRIS, Lin et al. 2022 — full mapping in
 [gris-anchoring.md](gris-anchoring.md)) the per-level merge is a GRIS instance
@@ -230,8 +263,8 @@ O(ε_n) sources**: (i) the coverage deficit (Prop C = violation of GRIS's
 coverage condition Eq 15, sign always negative); (ii) the shift distortion
 (Lemma 3.2.I); (iii) the value-passing / visibility gap attacked by ρ-validation
 (Prop V), whose renorm-before variant is O(ε_n) *contingent on bounded
-radiance*. Since ε_n = ε₀2⁻ⁿ, the total over N levels is bounded by the
-geometric series ∑ε_n < 2ε₀ **independent of N and scene scale** — the rigorous
+radiance*. Since ε_n ≤ (4/3)ε₀2⁻ⁿ, the total over N levels is bounded by
+the geometric series ∑ε_n < 3ε₀ **independent of N and scene scale** — the rigorous
 form of "reuse radius ∝ 2ⁿ is a corollary, not a hyperparameter".
 
 **[CORRECTION]** the earlier draft anchored via "∑m=1" (a legal MIS partition).
@@ -255,13 +288,14 @@ in [variance.md](variance.md), Prop V/W in §4–§5 above. What remains open:
    Lemma G) is tight.
 2. Temporal penumbra condition: characteristic angular velocity v/r ⇒ a
    principled M_n schedule; formalize block-jitter unbiasedness (lab log
-   E9) as piecewise-stationary MIS.
+   [E9](../experiments.md)) as piecewise-stationary MIS.
 3. Explicit constants for the default discretization (s₀=1, t₀=4, B₀=4):
    ε₀ = 3√2/8 ≈ 0.53, per-level radian shift ≤ 0.53·2⁻ⁿ; a bin-misalignment
    table vs n; and the coverage-sliver fraction |A|/|Ω_b| as a computed
    geometric integral (currently order-only). The ρ=0 leak calibration
-   (~27–35% ≈ ε₁) stays calibrated, not derived.
+   (~27% no-jitter E5, ~35% jittered-config E12; both ≈ ε₁) stays
+   calibrated, not derived.
 4. Windowed-lookup (Prop W) implementation and its measured cost/benefit —
-   an M2+/3D-version item.
+   deferred to the 3D version of the method.
 5. Further items in [integrand-mismatch.md](integrand-mismatch.md) §9 and
    [variance.md](variance.md) §5.
