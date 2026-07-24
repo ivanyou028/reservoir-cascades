@@ -198,9 +198,11 @@ bound.**
 A fully-unbiased GRIS instance of the merge would need *both* of the
 following fixed — they are distinct (an earlier draft conflated them):
 
-1. **Coverage (Eq 15, Prop C)** — a *geometrically fixable* O(ε_n) deficit,
-   negative sign. Remedy: widen the consulted-bin neighbourhood (windowed
-   lookup with per-bin MIS) so ∪_q T_q(supp X_q) covers Ω_b.
+1. **Coverage (Eq 15, Prop C)** — a *geometrically fixable* deficit whose
+   single-bin per-bin fraction is O(δ′_n) = Θ(2ⁿ) (§3 erratum), NOT O(ε_n)
+   and not sign-definite, and ZERO under the windowed lookup. Remedy: widen
+   the consulted-bin neighbourhood (windowed lookup with per-bin MIS,
+   Prop W′/Lemma M) so ∪_q T_q(supp X_q) covers Ω_b.
 2. **Partition-of-unity mislabel** — β-renormalization is not an Eq 17/20 MIS
    partition but an approximate visibility re-evaluation; its bias is bounded in
    Prop V, not certified here.
@@ -210,8 +212,11 @@ following fixed — they are distinct (an earlier draft conflated them):
 
 Items 1 and 3 are distinct: coverage is about *which directions get any
 proposal*; the value-passing gap is about *whether the proposed value carries
-p's visibility*. Both are O(ε_n) under bounded radiance and summable across the
-cascade.
+p's visibility*. The value-passing gap is O(ε_n) under bounded radiance and
+summable across the cascade; the single-bin coverage term is Θ(2ⁿ) and NOT
+summable — which is why the soundness theorem is stated for the windowed
+configuration, where coverage contributes zero. [Residual pre-erratum wording
+here was caught during the supplemental transcription audit.]
 
 ## 6. Open (ranked by payoff)
 
