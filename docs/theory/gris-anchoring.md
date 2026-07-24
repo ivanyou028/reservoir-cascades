@@ -127,13 +127,30 @@ for the target ∫_{supp p̂} f by exactly**
 
     bias = ∫_{supp Y} f − ∫_{supp p̂} f = − ∫_A L_{≥n+1}(p,ω) dω,   A = supp p̂ ∖ supp Y.
 
-The sign is **always negative** (missing support only removes energy);
-|A|/|Ω_b| = O(ε_n), ε_n ≤ ε₀·2⁻ⁿ. Only the order and sign are pinned; the
-parallax-to-bin-width constant is not derived. Consistent with the measured
-lit-region deficit −2.2% at ρ=1 (lab log E2/E5, S1) as an order-of-magnitude
-check (**not** a
-derived value, and **not** on the same axis as the shadow-leak sequence — see
-Prop V).
+**[ERRATUM 2026-07-23b — external review caught an ε/β conflation; this
+paragraph replaces the original "|A|/|Ω_b| = O(ε_n), sign always negative".]**
+|A| is O(ε_n) in *radians* (≈4 parent-bin boundaries per child bin, each
+contributing a strip of width ≤ the reprojection residual
+Δ_n ≤ (1−1/g)ε_n). But the child bin itself is only β_n ∝ 4⁻ⁿ wide, so the
+per-bin **fraction** is
+
+    |A|/|Ω_b| = O(ε_n/β_{n+1}) = O(δ′_n) = Θ(2ⁿ) — saturating at O(1) by n ≈ 2–3
+
+(δ′_n worst-case table, lemma-3_2 §8: 1.0 / 1.5 / 2.8 / 5.4 at n = 0..3).
+The single-bin lookup's per-level coverage bias is therefore NOT O(ε_n);
+past n ≈ 2 it can miss an O(1) fraction of a bin's content. Nor is the
+error purely negative: misalignment also deposits the *wrong* bin's energy
+(E3's striping has bright and dark columns — misplacement, not just loss).
+Aggregate over the circle it is no better: total strip measure
+≈ B_n·Δ_n = O(2ⁿ) radians grows with bin count — unlike the visibility
+corridor (physical: K silhouettes × ε_n, bin-count-independent). This is
+the aggregate face of the ×4 parallax obstruction (Lemma D).
+What survives: (i) the Eq-15-violation *identification* and the
+supp Y ⊊ supp p̂ mechanism; (ii) the windowed lookup with w ≥ δ′_n^max
+restores supp Y = supp p̂ **exactly** (Prop W) — coverage bias zero, which
+is why the soundness theorem is now stated for the windowed configuration;
+(iii) the measured single-bin residuals at shallow depth (E3/E4
+striping/banding) as empirical data on the implemented approximation.
 
 ## 4. The single structural gap, and the GRIS authors' own account of it
 

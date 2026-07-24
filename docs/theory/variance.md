@@ -14,6 +14,13 @@ entering squared; noted where it matters).
 Per (probe p, bin b, level n), single-frame no-temporal first. Escaped-case
 tail: X_n = c_s·W_sel, W_sel = (Σ_q w_q)/p̂(c_s), w_q = m_q p̂(c_q) J_q W_q,
 p̂(c) = c + λ (luminance), Σm_q = 1, J_q ≤ 1+Cε_n (Lemma J), W_q = 1 fresh.
+**Scope [made explicit 2026-07-23b, after external review]:** W_q ≡ 1 is
+*structural* for the single-frame estimator, not an assumption — the
+per-level collapse stores every fresh reservoir with W = 1 (restir.cpp
+phase 2), and the collapse's own selection randomness lives inside the
+stored value c_q, which is exactly what Lemmas S/T track. With temporal
+reuse ON, stored reservoirs carry W = Σw/p̂ ≠ 1 and the analysis below
+does NOT cover the combined temporal×hierarchy chain — see §5.
 μ := E_sel[X_n | {c_q}] = Σ_q m_q J_q c_q (identity (†), Prop V).
 
 ## 1. Lemma S (selection second moment — λ is the entire selection-noise dial)
@@ -58,7 +65,7 @@ to slower convergence". The empirical
 position of a* is measurable via inter-level ESS (future work; the E8
 autocorrelation is the temporal analogue).
 
-## 3. Theorem V (depth-uniform variance non-amplification)
+## 3. Theorem V (depth-uniform variance non-amplification — single-frame)
 
 ("Theorem V" = variance; distinct from Prop V, the validation-bias result of
 [lemma-3_2.md](lemma-3_2.md) §5.)
@@ -120,6 +127,14 @@ turn-ON is chain-limited at rate γ unless invalidation resets M (γ→1).
 
 ## 5. What remains open
 
+- **Temporal×hierarchy combined variance (opened by external review
+  2026-07-23b):** with temporal reuse, parents consulted by the next
+  frame's merges carry temporal-merged W ≠ 1; Lemmas S/T do not cover
+  this chain. Empirically the capped cascade chain is stable (2D, caps up
+  to 64), and the flat control measures what UNBOUNDED stored-W chaining
+  does (E16: exponential divergence at cap 32) — the per-level collapse +
+  M-cap are the structural mitigations, but a moment bound for the capped
+  temporal chain is an open problem.
 - The a* bracket's empirical position (inter-level ESS measurement — CPU
   oracle instrumentation, cheap).
 - Two-component temporal model (switch + AR(1)) fitted to the E8 sweep.

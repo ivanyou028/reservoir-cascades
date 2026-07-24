@@ -116,10 +116,23 @@ a systematic energy deficit (measured: 0.4–1.3× column striping, E3;
 
 Formally: let A ⊂ Ω_b be the direction subset of the child bin whose
 generating content falls outside the consulted parent bins. Then the merge
-estimator targets ∫_{Ω_b \ A} instead of ∫_{Ω_b}, i.e. bias
-−∫_A L dω, with |A| controlled by δ'_n. Remedy hierarchy: reprojection
-(shrinks |A|), windowed lookup with per-bin MIS (Prop W below), boundary
-jitter (converts the *radial* analogue of this gap into variance — E9).
+estimator targets ∫_{Ω_b \ A} instead of ∫_{Ω_b}, with |A| controlled by
+δ'_n. **[ERRATUM 2026-07-23b, external review]** Controlled by δ′_n means
+exactly that: |A| is O(ε_n) in radians, but as a FRACTION of the child bin
+|A|/|Ω_b| = O(δ′_n) = Θ(2ⁿ) — saturating at O(1) by n ≈ 2–3 (§8 table:
+δ′ = 1.0/1.5/2.8/5.4 at n = 0..3). The earlier reading of this as an
+O(ε_n) per-bin bias conflated radians with bin fractions and is WRONG;
+misalignment can lose (and misplace — E3's striping is bright AND dark)
+an O(1) fraction of a bin at depth. The assembled theorem (§6) is
+therefore stated for the windowed lookup, where coverage is exact and this
+term is zero; single-bin + reprojection is the implemented approximation,
+its residual measured (E3/E4), not certified. Remedy hierarchy:
+reprojection (shrinks the residual, exact at one depth), windowed lookup
+with per-bin MIS (Prop W below — the certified fix), boundary jitter
+(converts the *radial* analogue of this gap into variance — E9); in 3D,
+a ×2-per-axis direction schedule makes the shift Θ(1) in bin units and
+removes the obstruction structurally — it is specific to one angular
+dimension.
 
 ### Proposition W (windowed lookup restores coverage — the LEGAL renormalization)
 
@@ -314,16 +327,37 @@ circle; C₁, C₂ absolute constants — all per
 [integrand-mismatch.md](integrand-mismatch.md)).
 
 Consequently (anchoring to GRIS, Lin et al. 2022 — full mapping in
-[gris-anchoring.md](gris-anchoring.md)) the per-level merge is a GRIS instance
-whose finite-variance guarantee (Theorem 1) holds via the λ-defensive
-reasonable-distribution bound (Def 5.1), and whose bias has **three separable
-O(ε_n) sources**: (i) the coverage deficit (Prop C = violation of GRIS's
-coverage condition Eq 15, sign always negative); (ii) the shift distortion
-(Lemma 3.2.I); (iii) the value-passing / visibility gap attacked by ρ-validation
-(Prop V), whose renorm-before variant is O(ε_n) *contingent on bounded
-radiance*. Since ε_n ≤ (4/3)ε₀2⁻ⁿ, the total over N levels is bounded by
-the geometric series ∑ε_n < 3ε₀ **independent of N and scene scale** — the rigorous
-form of "reuse radius ∝ 2ⁿ is a corollary, not a hyperparameter".
+[gris-anchoring.md](gris-anchoring.md)), **for the windowed merge**
+(Prop W with w ≥ δ′_n^max, coverage restored exactly) the per-level merge
+is a GRIS instance whose finite-variance guarantee (Theorem 1) holds via
+the λ-defensive reasonable-distribution bound (Def 5.1), and whose bias
+has **two separable sources, both read as aggregates over the full
+direction circle** (per-bin worst cases can saturate —
+integrand-mismatch.md §9): (i) the shift distortion (Lemma 3.2.I /
+Theorem I-b): O(ε_n) for smooth scenes, O(ε_n·log(1/ε_n)) for polygonal
+ones (the flat-edge grazing log; a fixed non-grazing exclusion removes it
+at the price of a scene-explicit excluded band where λ pays variance);
+(ii) the value-passing / visibility gap attacked by ρ-validation (Prop V),
+O(ε_n) *contingent on bounded radiance*. Coverage contributes **zero** by
+construction. Both Σ_n ε_n < 3ε₀ and Σ_n ε_n·log(1/ε_n) < ∞ converge, so
+the totals are **independent of N and scene scale**, and the reuse-radius
+corollary — radius ∝ 2ⁿ from the penumbra condition — rides on the
+reconnection lemmas alone, unaffected by the coverage question.
+
+**[ERRATUM 2026-07-23b — external review]** The previous statement claimed
+*three* O(ε_n) sources, including a single-bin coverage deficit of
+relative size O(ε_n). That conflated radians with bin fractions: the
+single-bin sliver fraction is O(δ′_n) = Θ(2ⁿ), saturating at O(1) by
+n ≈ 2–3 (Prop C erratum, §4; gris-anchoring §3 erratum). The single-bin
+reprojected merge used in all experiments is therefore an approximation
+**outside this theorem's premise**: its coverage residual is the measured
+E3/E4 striping/banding — empirical, not certified — and the windowed
+configuration is the theorem-conforming one. Scope note on variance:
+Theorem V (variance.md) covers the **single-frame** estimator, where
+stored W ≡ 1 is structural (the per-level collapse); with temporal reuse
+parents carry W ≠ 1 and the combined temporal×hierarchy bound is open
+(variance.md §5; the flat control's stored-W divergence, lab log
+[E16](../experiments.md), measures what unbounded chaining does).
 
 **[CORRECTION]** the earlier draft anchored via "∑m=1" (a legal MIS partition).
 That is wrong: β-renormalization is *not* a GRIS Eq 17/20 partition (it
