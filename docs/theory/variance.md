@@ -64,9 +64,9 @@ and correlated with c_q. For ρ=0 the fluctuation is deterministic-bounded
 adding an O(ε_n²)-factor cross term; for ρ>0 the coefficient variance
 couples to survivor non-unanimity and adds an O(ε_n)·μ̄² injection term
 (aggregate reading), contingent on the Prop-V sample-distribution bound.
-Until that page of analysis is written out, Lemma T is proved as stated
-for fixed coefficients; the random-coefficient extension is an explicit
-open item.
+Status update 2026-07-23f: the ρ=0 single-bin case is now CLOSED by
+Lemma T′ (§2b below); ρ>0 and the windowed merge's slot-balance
+coefficients remain open.
 
 **Inter-level correlation (the proposal's "risk #1"; cf. E8's red-line
 test), quantified:** it moves a* within [Σm², 1] —
@@ -76,6 +76,63 @@ rigorous form of the proposal's "downgraded from variance explosion
 to slower convergence". The empirical
 position of a* is measurable via inter-level ESS (future work; the E8
 autocorrelation is the temporal analogue).
+
+
+## 2b. Lemma T′ (random-coefficient repair, single-bin merge, ρ=0)
+
+**[2026-07-23f — closes review-round-2 gap 1 for the ρ=0 single-frame
+single-bin case. No independence or conditioning between (J_q, c_q) is
+used anywhere; only a deterministic Jacobian bound and the L² triangle
+inequality.]**
+
+Setting: single frame, no temporal, ρ = 0, single-bin merge. Then
+m_q = β_q (deterministic, Σβ = 1), W_q ≡ 1 (structural), and the
+IMPLEMENTED Jacobian J_q = r_q/r_p satisfies the deterministic bound
+
+    J_q ∈ [1/(1+ε_n), 1/(1−ε_n)],  hence  |J_q − 1| ≤ κ_n := ε_n/(1−ε_n)
+
+(r_q ≥ t_{n+1} for every stored parent sample, d ≤ ε_n·t_{n+1}; the
+distance-ratio J has NO grazing exception — that caveat belongs to the
+cos-ratio variant the implementation drops). Requires ε_n < 1 (paraxial;
+at level 0 under extreme jitter ε₀ ≥ 1 the windowed merge already
+escalates to the full ring and this level's factor is taken at the
+jf-actual ε).
+
+**Claim.** With Z_q := c_q, V := max_q Var[Z_q], L̄ := max_q |E Z_q|
+(≤ L_max by layered unbiasedness), and arbitrary joint dependence between
+the (J_q, Z_q):
+
+    Var[ Σ_q β_q J_q Z_q ] ≤ τ_n·V + κ_n(1+κ_n)·L̄²,
+    τ_n := a*(1+κ_n) + κ_n(2+κ_n),   a* ∈ [Σβ², 1] as in Lemma T.
+
+*Proof.* Split Σβ_qJ_qZ_q = S + R with S := Σβ_qZ_q and
+R := Σβ_q(J_q−1)Z_q. σ(S+R) ≤ σ(S) + σ(R) (L² triangle inequality —
+valid under any correlation). σ(S)² ≤ a*·V is Lemma T with genuinely
+FIXED coefficients β_q. For R: |R| ≤ κ_n·Σβ_q|Z_q| almost surely, so by
+Jensen on the convex combination E[R²] ≤ κ_n²·Σβ_q E[Z_q²]
+≤ κ_n²(V + L̄²). Expanding (σ(S)+σ(R))² and absorbing the cross term via
+2√(a*V)·κ√(V+L̄²) ≤ κ(a*V + V + L̄²) and √a* ≤ 1 gives the claim. ∎
+
+**Consequences.** (i) Theorem V's unrolling survives with transfer
+factors τ_k in place of a*(1+Cε)²: τ_k ≤ (1+2κ_k)² at the a*=1 endpoint,
+Σκ_k < ∞, so the product stays depth- and scene-scale-independent; the
+new κ(1+κ)L̄² terms join the per-level injections (each O(ε_n)L_max²,
+summable). (ii) Constants, honestly: κ is NOT small at level 0
+(κ₀ = ε₀/(1−ε₀) ≈ 2.41 at the unjittered defaults ⇒ τ₀ ≲ 11.5) — one
+finite level-0 factor, ugly but N-independent; it decays fast
+(κ₁ ≈ 0.39, κ₂ ≈ 0.16, τ quickly → a*). Orders and depth-uniformity are
+what the theorem claims; these constants are what they cost.
+(iii) Scope, explicitly: this closes the random-coefficient gap for the
+SINGLE-BIN ρ=0 single-frame merge. Still open: (a) ρ > 0 — m_q becomes
+survivor-dependent and couples to the Prop-V unanimity machinery (round-2
+gap 2); (b) the WINDOWED merge's variance bookkeeping — its per-slot
+balance weights m = β/D(y) are sample-dependent beyond a small
+perturbation of fixed β, so this lemma does not transfer verbatim
+(empirically the windowed and single-bin merges are value-identical on
+typical scenes at certified widths, E17, but that is a measurement, not
+the missing lemma). The certified-coverage configuration (windowed) and
+the fully-proved-variance configuration (single-bin) therefore do not yet
+coincide; closing (b) unifies them.
 
 ## 3. Theorem V (depth-uniform variance non-amplification — single-frame)
 
