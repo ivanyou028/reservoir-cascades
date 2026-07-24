@@ -233,6 +233,19 @@ with depth), the radiance-weighted probability of
   O(1); the cascade's ∝2ⁿ radii are exactly the scale at which unanimity
   holds off O(ε_n) sets.
 
+**[Scope note 2026-07-23c, second external review — sample-distribution
+gap].** The unanimity step needs P(stored y_q ∈ penumbra strip) = O(ε_n)
+in the radiance-weighted sense. That is immediate for FRESH candidates
+(one selection round: the p̂-tilt costs one bounded factor C_λ). After
+cascaded/temporal reselection the stored-location density can tilt by a
+p̂-ratio per round, and bounded TRUE radiance alone does not obviously
+control it. Repair path (open): route the argument through set-restricted
+contribution mass — E[c·W·1_{y∈S}] tracks the true integral over S by
+per-level restricted unbiasedness — rather than through selection
+probabilities; until that is written out, the O(ε_n) claim below is proved
+for merges whose parent samples are one selection round deep, and stated
+as the target for the chained case.
+
 **Conclusion.** The renorm-before mean bias is O(ε_n) — *contingent on bounded
 radiance* (this hypothesis is load-bearing for the **mean**, not only the
 variance; S2's near-point source is the stress case). Measured −2.2% (S1 lit,

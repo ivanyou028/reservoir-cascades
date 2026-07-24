@@ -56,6 +56,18 @@ with Σ_q m_q J_q ≤ (1+Cε_n) — the a*=1 endpoint (perfectly correlated
 parents). Independent parents give a* = Σm_q² ∈ [¼, 1] (≈ 0.25–0.36 for
 bilinear β). ∎
 
+**[Scope note 2026-07-23c, second external review]** The Cauchy–Schwarz
+step above treats the coefficients m_qJ_q as fixed. In the estimator they
+are random (m_q via validation survivors, J_q via the stored hit point)
+and correlated with c_q. For ρ=0 the fluctuation is deterministic-bounded
+(|J−1| ≤ Cε_n, m_q = β_q fixed) and the repair is a centering computation
+adding an O(ε_n²)-factor cross term; for ρ>0 the coefficient variance
+couples to survivor non-unanimity and adds an O(ε_n)·μ̄² injection term
+(aggregate reading), contingent on the Prop-V sample-distribution bound.
+Until that page of analysis is written out, Lemma T is proved as stated
+for fixed coefficients; the random-coefficient extension is an explicit
+open item.
+
 **Inter-level correlation (the proposal's "risk #1"; cf. E8's red-line
 test), quantified:** it moves a* within [Σm², 1] —
 from 4× variance reduction per merge toward none — but *never past 1*:
