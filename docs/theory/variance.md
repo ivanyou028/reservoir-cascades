@@ -167,11 +167,19 @@ original statement used Lemma T's fixed-coefficient transfer
 gap.]
 
 **The cascade does not amplify variance: the total is at most a
-scene-scale- and depth-independent constant C_var := Π_n τ_n times the
-sum of per-level single-sample injections.** Numerically, quote C_var,
-not the exponent: at the unjittered defaults with a* = 1 (arbitrary
-parent correlation) the infinite-depth product is
-C_var = Π τ_n ≈ 72.9 (τ_n ≈ 14.04, 2.34, 1.49, 1.22, 1.10, → 1), while
+scene-scale- and depth-independent constant
+
+    C_var := sup_{m≥0} Π_{k<m} τ_k ≤ Π_{k≥0} max(1, τ_k) < ∞
+
+times the sum of per-level single-sample injections.** The sup is the
+correct quantifier — the recursion must bound EVERY partial product
+Π_{k<m}τ_k, and when deep levels contract (τ_k < 1, possible for
+near-independent parents at n ≳ 2) the infinite product can undershoot
+an earlier partial product; the max(1,·) envelope restores a valid
+uniform bound. Numerically, quote C_var, not the exponent: at the
+unjittered defaults with a* = 1 (arbitrary parent correlation) every
+τ_k > 1, the sup degenerates to the plain infinite product, and
+C_var ≈ 72.9 (τ_n ≈ 14.04, 2.34, 1.49, 1.22, 1.10, → 1), while
 the closed form exp(Σ(3κ_n+κ_n²)) ≈ 4.5×10⁶ is a deliberately loose
 analytic envelope of the same product — an upper bound's upper bound,
 never a value to report. The penumbra condition — the same ε_n
