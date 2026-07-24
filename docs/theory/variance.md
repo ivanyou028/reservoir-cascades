@@ -93,10 +93,13 @@ IMPLEMENTED Jacobian J_q = r_q/r_p satisfies the deterministic bound
 
 (r_q ≥ t_{n+1} for every stored parent sample, d ≤ ε_n·t_{n+1}; the
 distance-ratio J has NO grazing exception — that caveat belongs to the
-cos-ratio variant the implementation drops). Requires ε_n < 1 (paraxial;
-at level 0 under extreme jitter ε₀ ≥ 1 the windowed merge already
-escalates to the full ring and this level's factor is taken at the
-jf-actual ε).
+cos-ratio variant the implementation drops).
+**HYPOTHESIS: ε_n < 1 at every level covered by the claim.** This is a
+real exclusion, not a technicality: at ε_n ≥ 1 (attainable at level 0
+under extreme boundary jitter) r_p has no positive lower bound and
+J = r_q/r_p is unbounded — the full-ring escalation repairs COVERAGE
+only and does nothing for this variance bound. Jitter splits with
+ε₀ ≥ 1 fall outside Lemma T′ and outside Theorem V as restated below.
 
 **Claim.** With Z_q := c_q, V := max_q Var[Z_q], L̄ := max_q |E Z_q|
 (≤ L_max by layered unbiasedness), and arbitrary joint dependence between
@@ -118,10 +121,13 @@ factors τ_k in place of a*(1+Cε)²: τ_k ≤ (1+2κ_k)² at the a*=1 endpoint,
 Σκ_k < ∞, so the product stays depth- and scene-scale-independent; the
 new κ(1+κ)L̄² terms join the per-level injections (each O(ε_n)L_max²,
 summable). (ii) Constants, honestly: κ is NOT small at level 0
-(κ₀ = ε₀/(1−ε₀) ≈ 2.41 at the unjittered defaults ⇒ τ₀ ≲ 11.5) — one
-finite level-0 factor, ugly but N-independent; it decays fast
-(κ₁ ≈ 0.39, κ₂ ≈ 0.16, τ quickly → a*). Orders and depth-uniformity are
-what the theorem claims; these constants are what they cost.
+(κ₀ = ε₀/(1−ε₀) ≈ 2.41 at the unjittered defaults), and τ₀ depends on
+the unknown correlation position a*: **worst case (a* = 1, arbitrary
+parent correlation) τ₀ = 1 + 3κ₀ + κ₀² ≈ 14.1**; the near-independent
+end (a* ≈ Σβ² ≈ 1/4) gives ≈ 11.5. One finite level-0 factor either
+way, N-independent, decaying fast with level (κ₁ ≈ 0.39 ⇒ τ₁ ≤ 2.4;
+κ₂ ≈ 0.16 ⇒ τ₂ ≤ 1.6). Orders and depth-uniformity are what the theorem
+claims; these constants are what they cost.
 (iii) Scope, explicitly: this closes the random-coefficient gap for the
 SINGLE-BIN ρ=0 single-frame merge. Still open: (a) ρ > 0 — m_q becomes
 survivor-dependent and couples to the Prop-V unanimity machinery (round-2
@@ -132,24 +138,39 @@ perturbation of fixed β, so this lemma does not transfer verbatim
 typical scenes at certified widths, E17, but that is a measurement, not
 the missing lemma). The certified-coverage configuration (windowed) and
 the fully-proved-variance configuration (single-bin) therefore do not yet
-coincide; closing (b) unifies them.
+coincide; closing (b) unifies them. Baton, verbatim: **Lemma T′ closed
+for single-bin, single-frame, ρ=0, ε_n<1; it does not yet close
+Theorem V for the certified windowed estimator.**
 
 ## 3. Theorem V (depth-uniform variance non-amplification — single-frame)
 
 ("Theorem V" = variance; distinct from Prop V, the validation-bias result of
 [lemma-3_2.md](lemma-3_2.md) §5.)
 
-Let ι_n := λ(1+Cε_n)μ_n + Var_cand,n be the per-level injection (defensive
-selection noise + the own-candidate Bernoulli noise, Var_cand,n ≤ μ_n·L_max
-crude). Combining Lemmas S and T by the law of total variance and unrolling
+**Scope [restated 2026-07-23g]: single-bin merge, single frame, ρ = 0,
+ε_k < 1 at every level (Lemma T′'s hypothesis — jitter splits pushing
+ε₀ ≥ 1 fall outside). This theorem does NOT yet cover the certified
+windowed estimator (Lemma T′ (iii)).**
+
+Let ι′_n := λ(1+κ_n)μ_n + Var_cand,n + κ_n(1+κ_n)·L̄² be the per-level
+injection (defensive selection noise + the own-candidate Bernoulli noise,
+Var_cand,n ≤ μ_n·L_max crude, + Lemma T′'s coefficient-fluctuation term).
+Combining Lemmas S and T′ by the law of total variance and unrolling
 n = N−1..0:
 
-    V_0 ≤ Σ_n [ Π_{k<n} (1+Cε_k)²·a*_k ] · ι_n
-        ≤ e^{6Cε₀} · Σ_n ι_n,          since Σ_k ε_k < 3ε₀ (lemma-3_2 §0).
+    V_0 ≤ Σ_n [ Π_{k<n} τ_k ] · ι′_n,      τ_k = a*_k(1+κ_k) + κ_k(2+κ_k)
+        ≤ exp( Σ_k (3κ_k + κ_k²) ) · Σ_n ι′_n     (τ ≤ 1+3κ+κ² at a* = 1),
+
+finite since Σ_k κ_k < ∞ (κ_k = ε_k/(1−ε_k), ε_k geometric). [The
+original statement used Lemma T's fixed-coefficient transfer
+(1+Cε)²·a*; Lemma T′ replaces it after the random-coefficient review
+gap.]
 
 **The cascade does not amplify variance: the total is at most a
-scene-scale- and depth-independent constant e^{6Cε₀} times the sum of
-per-level single-sample injections.** The penumbra condition — the same ε_n
+scene-scale- and depth-independent constant — exp(Σ(3κ+κ²)), numerically
+dominated by the level-0 factor (worst case ≈14.1, near-independent
+≈11.5 at the unjittered defaults) — times the sum of per-level
+single-sample injections.** The penumbra condition — the same ε_n
 engine that bounds every bias term — also bounds the variance compounding.
 With independent-ish parents (a* < 1/(1+Cε)²) the product *contracts* and
 deep levels contribute geometrically less to V_0.
