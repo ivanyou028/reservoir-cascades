@@ -167,13 +167,22 @@ original statement used Lemma T's fixed-coefficient transfer
 gap.]
 
 **The cascade does not amplify variance: the total is at most a
-scene-scale- and depth-independent constant — exp(Σ(3κ+κ²)), numerically
-dominated by the level-0 factor (worst case ≈14.1, near-independent
-≈11.5 at the unjittered defaults) — times the sum of per-level
-single-sample injections.** The penumbra condition — the same ε_n
+scene-scale- and depth-independent constant C_var := Π_n τ_n times the
+sum of per-level single-sample injections.** Numerically, quote C_var,
+not the exponent: at the unjittered defaults with a* = 1 (arbitrary
+parent correlation) the infinite-depth product is
+C_var = Π τ_n ≈ 72.9 (τ_n ≈ 14.04, 2.34, 1.49, 1.22, 1.10, → 1), while
+the closed form exp(Σ(3κ_n+κ_n²)) ≈ 4.5×10⁶ is a deliberately loose
+analytic envelope of the same product — an upper bound's upper bound,
+never a value to report. The penumbra condition — the same ε_n
 engine that bounds every bias term — also bounds the variance compounding.
-With independent-ish parents (a* < 1/(1+Cε)²) the product *contracts* and
-deep levels contribute geometrically less to V_0.
+Contraction (τ_n < 1) now requires a* < (1−2κ_n−κ_n²)/(1+κ_n), which is
+satisfiable only for κ_n < √2−1 ≈ 0.414. At the defaults this rules out
+contraction at n = 0 (κ₀ ≈ 2.41) and effectively at n = 1 (threshold
+a* < 0.04, below the bilinear minimum Σβ² ≥ 1/4); from n ≈ 2 on
+(threshold ≈ 0.58) near-independent parents do contract and deep levels
+contribute geometrically less to V_0. The old fixed-coefficient
+condition a* < 1/(1+Cε)² is superseded.
 
 Connection to GRIS Thm 1: our per-level Var[Σ_q w_q] is what enters their
 b-term (Eq 30); Lemma S bounds it by (μ+λJ̄)² − μ²-type quantities, giving a
