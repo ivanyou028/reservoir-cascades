@@ -164,7 +164,7 @@ visibility-determined and NOT certifiable this way. *Coverage*
 renormalization is legal because non-covering ⇒ non-realizing; *visibility*
 renormalization is not, because occlusion ≠ non-realization.
 (ii) **Coverage is restored — supp Y ⊇ C(ω)'s content at every depth —
-at the certified width of Lemma M below** (exact worst-case bound
+at the certified width of Lemma M below** (closed-form sound bound
 w ≥ 2 + D1 + max(D2, D3), full-ring escalation when t₁ ≤ d). The width is
 PROVED, then regression-checked by the `rc coverage` enumeration oracle
 (9-point jitter sweep including the near-breakdown band ε ∈ [0.8, 1):
@@ -495,8 +495,9 @@ below. What remains open:
    over content depth (currently order-only; §8 tabulates its worst-case
    driver δ′_n). The ρ=0 leak calibration (~27% no-jitter E5, ~35%
    jittered-config E12; both ≈ ε₁) stays calibrated, not derived.
-3. Windowed-lookup (Prop W) implementation and its measured cost/benefit —
-   deferred to the 3D version of the method.
+3. ~~Windowed-lookup implementation~~ → DONE (Prop W′ + Lemma M, §4;
+   restir.cpp `--window-auto`; `rc coverage` regression; lab log E17/E17c).
+   The 3D extension remains open.
 4. Whether the polygonal-case aggregate log factor
    ([integrand-mismatch.md](integrand-mismatch.md) Theorem I-b) is
    removable; further items in its §9 and [variance.md](variance.md) §5.

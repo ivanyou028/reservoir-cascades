@@ -401,13 +401,17 @@ static int compare(int argc, char** argv) {
 // parent cell (worst displacement at corners), anchor directions ω and
 // content directions φ at cell edges/center (worst intra-cell separation),
 // depths from the interval start (worst reprojection residual) to far field,
-// and boundary-jitter extremes, check that the content's parent-side bin
+// and a dense boundary-jitter sweep, check that the content's parent-side bin
 //   b*_q(y) = binOf(n+1, dir(q→y))
 // lies within the consulted window [bp_q − w, bp_q + w] anchored at the
-// candidate's reprojection. Reports violations for the auto width w_n and
-// for w_n − 1 (negative control: violations MUST appear there, proving the
-// test has teeth). MAPE improvements cannot certify support completeness;
-// this enumeration can.
+// candidate's reprojection. Reports, per level: violations at the Lemma-M
+// width w_n (must be ZERO), at w_n − 1 (a SLACK probe — the Lemma-M bound is
+// sound, not tight, so zero here is expected and claims nothing), and at the
+// fixed control width w = 1 (the guaranteed-teeth negative control: it must
+// violate; the superseded margin mode's measured failure — 1348 violations
+// at L0 w=4 in the near-breakdown band — is the other standing control).
+// MAPE improvements cannot certify support completeness; this enumeration
+// regresses Lemma M.
 static int coverage(int argc, char** argv) {
     int size = std::atoi(arg(argc, argv, "--size", "128").c_str());
     int wOverride = std::atoi(arg(argc, argv, "--window", "-999").c_str());
@@ -424,7 +428,7 @@ static int coverage(int argc, char** argv) {
                 "%s)\n", size, cfg.levels,
                 wOverride != -999 ? " OVERRIDDEN" : "");
     for (int n = 0; n + 1 < cfg.levels; n++) {
-        long long viol[2] = {0, 0}, checks = 0;
+        long long viol[3] = {0, 0, 0}, checks = 0;
         int wAutoMax = 0;
         for (int ji = 0; ji < 9; ji++) {
             CascadeCfg cfgF = cfg;
@@ -482,6 +486,7 @@ static int coverage(int argc, char** argv) {
                                             checks++;
                                             if (cd > w) viol[0]++;
                                             if (cd > w - 1) viol[1]++;
+                                            if (cd > 1) viol[2]++;
                                         }
                                     }
                                 }
@@ -491,8 +496,9 @@ static int coverage(int argc, char** argv) {
         }
         totalViol += viol[0];
         totalChecks += checks;
-        std::printf("  L%d: w=%d checks=%lld violations=%lld (w-1: %lld)"
-                    " %s\n", n, wAutoMax, checks, viol[0], viol[1],
+        std::printf("  L%d: w=%d checks=%lld violations=%lld"
+                    " (slack w-1: %lld, control w=1: %lld) %s\n",
+                    n, wAutoMax, checks, viol[0], viol[1], viol[2],
                     viol[0] == 0 ? "OK" : "FAIL");
     }
     std::printf("[coverage] total: %lld/%lld violations %s\n", totalViol,

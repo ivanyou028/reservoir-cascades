@@ -66,7 +66,7 @@ struct RParams {
     //   window ≥ 0 : fixed radius w at every level (calibration mode,
     //                UNCERTIFIED);
     //   windowAuto : per-level CERTIFIED width from Lemma M
-    //                (CascadeCfg::coverageWindow — exact worst-case bound
+    //                (CascadeCfg::coverageWindow — closed-form sound bound
     //                2 + D1 + max(D2,D3), full-ring escalation at paraxial
     //                breakdown t₁ ≤ d), computed from the jittered geometry;
     //                overrides `window`. Regression: `rc coverage` oracle.

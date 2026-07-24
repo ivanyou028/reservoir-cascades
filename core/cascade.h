@@ -79,9 +79,10 @@ struct CascadeCfg {
     }
 
     // Certified coverage window half-width for the level-n windowed merge
-    // (Prop W', conditional-cell form) — computes the EXACT worst-case
-    // bin-distance bound of the margin lemma (Lemma M, theory notes), with
-    // no small-angle approximation and no tuned margin:
+    // (Prop W', conditional-cell form) — computes the closed-form SOUND
+    // upper bound of the margin lemma (Lemma M, theory notes): no
+    // small-angle steps and no tuned margin, but NOT minimal — it uses
+    // atan x ≤ x and ρ ≥ τ−d, so certified widths carry slack:
     //   write e := p−q (|e| = d ≤ √2·s_{n+1}), and for a ray direction û,
     //   ψ(τ) = atan2(e⊥, τ+e∥) the exact parent-side deviation. Then
     //   ψ'(τ) = −e⊥/ρ(τ)² is sign-fixed ⇒ depth extremes sit at the

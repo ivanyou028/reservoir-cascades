@@ -147,7 +147,7 @@ corridor (physical: K silhouettes × ε_n, bin-count-independent). This is
 the aggregate face of the ×4 parallax obstruction (Lemma D).
 What survives: (i) the Eq-15-violation *identification* and the
 supp Y ⊊ supp p̂ mechanism; (ii) the windowed lookup at the certified
-width of Lemma M (lemma-3_2 §4: exact worst-case bound
+width of Lemma M (lemma-3_2 §4: closed-form sound bound
 w ≥ 2 + D1 + max(D2,D3), full-ring escalation at paraxial breakdown)
 restores supp Y = supp p̂ **exactly** (Prop W′, conditional-cell form) —
 coverage bias zero, which is why the soundness theorem is stated for that
