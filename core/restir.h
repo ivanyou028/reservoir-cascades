@@ -53,17 +53,23 @@ struct RParams {
     // data-independent ⇒ unbiased. Bounds effective temporal reuse to the
     // block length.
     int bjitterBlock = 8;
-    // Windowed parent-bin lookup (Prop W): consult bins {bp−w..bp+w} per
-    // parent with the per-sample coverage-balance MIS
-    //   m = β_q / Σ_r β_r·1[sample's back-projected bin ∈ r's window]
-    // and a target-domain filter (reconnected direction must stay in the
-    // child bin). This is the theorem-conforming configuration: coverage is
-    // exact once w ≥ δ'_n (the reprojection residual in parent-bin units).
+    // Windowed parent-bin lookup (Prop W', conditional-cell form): the tail
+    // stays LOCAL to the candidate direction ω — a stored sample is accepted
+    // only if its reconnected direction lies in ω's level-(n+1) cell
+    // (reconnection is parallax-free; parallax lives in the parent-side bin
+    // index) — and the window {bp−w..bp+w} per parent exists solely to
+    // recover content whose parent-side index is shifted by depth parallax.
+    // Per-sample coverage-balance MIS:
+    //   m = β_q / Σ_r β_r·1[sample's back-projected bin ∈ r's window].
     //   window < 0 : legacy single-bin reprojected lookup (default; the
     //                cheap approximation, coverage residual measured E3/E4);
-    //   window ≥ 0 : fixed radius w at every level;
-    //   windowAuto : per-level theorem width w_n = ceil(δ'_n^max), computed
-    //                from the (jittered) geometry; overrides `window`.
+    //   window ≥ 0 : fixed radius w at every level (calibration mode,
+    //                UNCERTIFIED);
+    //   windowAuto : per-level CERTIFIED width from Lemma M
+    //                (CascadeCfg::coverageWindow — exact worst-case bound
+    //                2 + D1 + max(D2,D3), full-ring escalation at paraxial
+    //                breakdown t₁ ≤ d), computed from the jittered geometry;
+    //                overrides `window`. Regression: `rc coverage` oracle.
     // Validation (ρ>0) applies at the per-parent winner as before — the
     // narrowed theorem covers windowed + single-frame + ρ=0; ρ>0 windowed is
     // the same empirical extension as single-bin.

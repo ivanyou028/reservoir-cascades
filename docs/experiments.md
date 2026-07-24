@@ -436,6 +436,43 @@ of every deviation).
 - Remaining: multi-seed × ρ × temporal × worst-case-geometry sweep;
   paper table with a proved-vs-measured split.
 
+
+### E17c — Lemma M: margin heuristic replaced by an exact certified width (fourth review round, same day)
+
+- Review point accepted: the "+2 margin" came from a finite enumeration
+  and cannot certify the continuous (p, ω, φ, r, ξ) space — label
+  tightened to oracle-validated. Response: prove the analytic lemma and
+  ELIMINATE the margin entirely.
+- **Lemma M** (lemma-3_2.md §4; no small-angle steps anywhere):
+  ψ_θ(τ) = atan2(e⊥, τ+e∥) exactly; ψ′ is sign-fixed ⇒ depth extremes sit
+  at the interval endpoints/∞ (the requested endpoint reduction); three
+  exact terms D1 (anchor rotation), D2 (start-side depth sweep), D3
+  (far-side) + 1 cell + 1 rounding ⇒ w ≥ 2 + D1 + max(D2, D3); paraxial
+  breakdown t₁ ≤ d ⇒ full ring. The code IS the formula
+  (CascadeCfg::coverageWindow); the oracle is the lemma's implementation
+  regression, not its substitute.
+- **The enumeration really had missed a region** (as the review warned):
+  the old 3-point jitter sweep gave ε₀ ∈ {1.41, 0.71, 0.35} and never
+  tested the near-breakdown band ε ∈ [0.8, 1). Densified to 9 points,
+  the MEASURED negative control: margin-mode w=4 at L0 fails there with
+  1348 violations; the Lemma-M width is clean (targeted re-check at
+  size 8). A finite enumeration cannot substitute for the lemma — now a
+  measured lesson, not a predicted one.
+- Final state: 9-point jitter sweep, **zero violations over 38.1M (128²)
+  / 154.2M (256²) checks**. Certified widths: unjittered split
+  {full ring, 5, 6, 9}; worst case across the jitter range
+  {16, 13, 11, 16} — computed per frame from the active split, so cost is
+  jitter-dependent; reads/parent up to {16, 27, 23, 33}. The lemma bound
+  is SOUND, not tight (w−1 is also clean at the certified widths;
+  minimality is not claimed) — correct phrasing for the paper: "a
+  narrower negative control produces violations" (the measured failures
+  of the superseded ⌈δ′⌉ and margin modes), never "w−1 violates at every
+  level".
+- Doc sync: restir.h comment, both stale w ≥ δ′ references in
+  gris-anchoring, and the lemma-3_2 §7 checkoff all updated to
+  Prop W′/Lemma M. Label: **certified by Lemma M, regression-validated by
+  the oracle**.
+
 ## Go/No-Go tracking (proposal §9; decided at end of M2)
 
 - [x] GO-1 S1 leak < 20% of vanilla: multi-seed **18.0%±1.9%** at ρ=0.25

@@ -146,9 +146,12 @@ Aggregate over the circle it is no better: total strip measure
 corridor (physical: K silhouettes × ε_n, bin-count-independent). This is
 the aggregate face of the ×4 parallax obstruction (Lemma D).
 What survives: (i) the Eq-15-violation *identification* and the
-supp Y ⊊ supp p̂ mechanism; (ii) the windowed lookup with w ≥ δ′_n^max
-restores supp Y = supp p̂ **exactly** (Prop W) — coverage bias zero, which
-is why the soundness theorem is now stated for the windowed configuration;
+supp Y ⊊ supp p̂ mechanism; (ii) the windowed lookup at the certified
+width of Lemma M (lemma-3_2 §4: exact worst-case bound
+w ≥ 2 + D1 + max(D2,D3), full-ring escalation at paraxial breakdown)
+restores supp Y = supp p̂ **exactly** (Prop W′, conditional-cell form) —
+coverage bias zero, which is why the soundness theorem is stated for that
+configuration;
 (iii) the measured single-bin residuals at shallow depth (E3/E4
 striping/banding) as empirical data on the implemented approximation.
 

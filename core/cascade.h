@@ -78,25 +78,36 @@ struct CascadeCfg {
         return p;
     }
 
-    // Coverage-complete window half-width for the level-n windowed merge
-    // (Prop W, conditional-cell form): the reprojection residual
-    // δ'_n = δ_n·(1−1/g) in parent-bin units, plus `margin` for the
-    // intra-cell anchor-to-content offset (content φ and anchor ω share a
-    // parent-width cell but can differ by up to one bin) and discrete
-    // boundary rounding. The default margin is validated by the `coverage`
-    // oracle (zero violations required); call on the JITTERED cfg so the
-    // width tracks the active interval split.
-    int coverageWindow(int n, double margin = 2.0) const {
+    // Certified coverage window half-width for the level-n windowed merge
+    // (Prop W', conditional-cell form) — computes the EXACT worst-case
+    // bin-distance bound of the margin lemma (Lemma M, theory notes), with
+    // no small-angle approximation and no tuned margin:
+    //   write e := p−q (|e| = d ≤ √2·s_{n+1}), and for a ray direction û,
+    //   ψ(τ) = atan2(e⊥, τ+e∥) the exact parent-side deviation. Then
+    //   ψ'(τ) = −e⊥/ρ(τ)² is sign-fixed ⇒ depth extremes sit at the
+    //   interval start / ∞ (endpoint reduction), and
+    //     |ψ_φ(r) − ψ_ω(t_c)| ≤ β·D1 + max(D2, D3)·β   with
+    //     D1 = d(t_c+d)/(t_c−d)²          (anchor rotation, per radian)
+    //     D2 = d(t_c−t₁)/((t₁−d)(t_c−d))/β  (depth sweep, start side)
+    //     D3 = d/(t_c−d)/β                 (depth sweep, far side)
+    //   plus 1 bin for the intra-cell anchor-content offset and 1 for
+    //   index rounding: w ≥ 2 + D1 + max(D2, D3). Paraxial breakdown
+    //   t₁ ≤ d (possible at level 0 under extreme boundary jitter) ⇒ FULL
+    //   RING (every parent bin once; complete by construction). The
+    //   `rc coverage` oracle is the regression for this lemma, not its
+    //   substitute. Call on the JITTERED cfg so the width tracks the
+    //   active split.
+    int coverageWindow(int n) const {
         double t1 = intervalStart(n + 1), t2 = intervalEnd(n + 1);
-        double eps = std::sqrt(2.0) * spacing(n + 1) / t1;
-        // Non-paraxial regime (parent displacement ≥ interval start, hit at
-        // extreme boundary jitter on level 0): dir(q→y) is unconstrained and
-        // no finite window can certify coverage — escalate to the FULL RING
-        // (every parent bin consulted once; coverage exact by construction).
-        if (eps >= 1.0) return bins(n + 1);
-        double delta = eps * bins(n + 1) / TWO_PI;
-        double g = std::sqrt(t2 / t1);
-        int w = (int)std::ceil(delta * (1.0 - 1.0 / g) + margin - 1e-9);
+        double d = std::sqrt(2.0) * spacing(n + 1);
+        if (t1 <= d) return bins(n + 1); // non-paraxial: full ring
+        double tc = std::sqrt(t1 * t2);
+        double beta = TWO_PI / bins(n + 1);
+        double D1 = d * (tc + d) / ((tc - d) * (tc - d));
+        double D2 = d * (tc - t1) / ((t1 - d) * (tc - d)) / beta;
+        double D3 = d / (tc - d) / beta;
+        double need = 2.0 + D1 + std::fmax(D2, D3);
+        int w = (int)std::ceil(need - 1e-9);
         return w < 1 ? 1 : w;
     }
 

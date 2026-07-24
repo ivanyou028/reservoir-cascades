@@ -164,24 +164,23 @@ visibility-determined and NOT certifiable this way. *Coverage*
 renormalization is legal because non-covering ⇒ non-realizing; *visibility*
 renormalization is not, because occlusion ≠ non-realization.
 (ii) **Coverage is restored — supp Y ⊇ C(ω)'s content at every depth —
-once w ≥ δ'_n + intra-cell margin.** The margin (content φ and anchor ω
-share C(ω) but differ by up to one bin, plus discrete boundary rounding)
-is +2 at our defaults; in the non-paraxial regime ε_n ≥ 1 (level 0 at
-extreme boundary jitter: parent displacement exceeds the interval start,
-so dir(q→y) is unconstrained) NO finite window suffices and the width
-escalates to the **full ring** (every parent bin once — coverage exact by
-construction). Certified widths are geometry-computed
-(`CascadeCfg::coverageWindow`) and validated by a direct enumeration
-oracle (`rc coverage`): **zero violations over 12.7M/51.4M checks at
-128²/256² including jitter extremes, with the negative control (w−1)
-violating — the test has teeth.** MAPE improvements cannot certify support
-completeness; this enumeration does.
+at the certified width of Lemma M below** (exact worst-case bound
+w ≥ 2 + D1 + max(D2, D3), full-ring escalation when t₁ ≤ d). The width is
+PROVED, then regression-checked by the `rc coverage` enumeration oracle
+(9-point jitter sweep including the near-breakdown band ε ∈ [0.8, 1):
+zero violations over 38.1M/154.2M checks at 128²/256²). The teeth
+demonstration: the superseded heuristic widths (⌈δ′⌉, then "+2 margin" on
+a coarse jitter sweep) DO violate under the densified sweep; at the
+Lemma-M widths w−1 is also clean — the certified bound is sound, not
+minimal. MAPE improvements cannot certify support completeness; the
+lemma + oracle do.
 (iii) Cost, honestly split into two modes:
   - **Certified mode** (`--window-auto`, the theorem configuration):
-    per-level widths at the 128² defaults w = {16 (full ring), 5, 8, 13}
-    → reads/parent {16, 11, 17, 27} ≈ 3–27× the single-bin lookup's; no
-    extra rays. This is the price of exact coverage after the oracle's
-    verdict — steeper than the pre-oracle estimate.
+    Lemma-M widths, jitter-dependent — at the unjittered 128² split
+    w = {full ring, 5, 6} (levels 0–2), worst case across the jitter
+    range {16, 13, 11} → reads/parent up to {16, 27, 23} ≈ 4–8× typical,
+    up to ~27× worst case; no extra rays. This is the proved price of
+    exact coverage — steeper than every pre-lemma estimate.
   - **Calibration mode** (small fixed w = 1–2, 3–5× reads): matches the
     E3-measured typical content shift, UNCERTIFIED — worst-case content
     (bin-boundary + interval-start) escapes it (oracle: violations at
@@ -193,6 +192,68 @@ Empirically, widening beyond the certified width is value-neutral
 certified-vs-calibration differ in cost and worst-case guarantee, not in
 typical-scene output (lab log E17: identical S2 results under both
 widths).
+
+
+#### Lemma M (certified window width — the exact margin lemma)
+
+**[2026-07-23e; replaces the enumerated "+2 margin". Implemented verbatim
+in `CascadeCfg::coverageWindow`; the `rc coverage` oracle is this lemma's
+implementation regression, not its substitute.]**
+
+Fix level n; parent level n+1 has B := B_{n+1} bins of width β = 2π/B;
+intervals [t₁, t₂) := [t_{n+1}, t_{n+2}) from the ACTIVE (jittered) split;
+t_c := √(t₁t₂); parent displacement e := p − q, d := |e| ≤ √2·s_{n+1}.
+Assume the paraxial condition t₁ > d (else clause (5)). For a direction
+û(θ) at p write the EXACT parent-side deviation
+
+    ψ_θ(τ) := atan2(e⊥, τ + e∥),   e∥ := e·û, e⊥ := e·n̂ (n̂ ⊥ û),
+
+so the parent-side angle of the point p + τ·û is θ + ψ_θ(τ). No small-angle
+approximation is used anywhere below.
+
+(1) *Endpoint reduction.* ∂ψ/∂τ = −e⊥/ρ(τ)² with ρ(τ) = |p + τû − q|:
+sign-fixed, so ψ is monotone in depth and
+sup_{r ≥ t₁} |ψ(r) − ψ(t_c)| = max(|ψ(t₁) − ψ(t_c)|, |ψ(t_c)|) — only the
+interval start and the far limit need checking.
+
+(2) *Exact term bounds* (ρ(τ) ≥ τ − d; |e⊥| ≤ d; atan x ≤ x;
+e⊥′ = −e∥, e∥′ = e⊥ under rotation of û):
+
+    |ψ(t₁) − ψ(t_c)| = ∫_{t₁}^{t_c} |e⊥|/ρ² dτ ≤ d(t_c−t₁)/((t₁−d)(t_c−d)) =: β·D2
+    |ψ(t_c)|         ≤ d/(t_c−d)                                        =: β·D3
+    |∂ψ_θ(t_c)/∂θ|   = |e∥t_c + d²|/ρ(t_c)² ≤ d(t_c+d)/(t_c−d)²        =: D1
+
+(3) *Same-cell content.* For anchor ω and content direction φ in the same
+level-(n+1) cell (|θ_φ − θ_ω| < β), content depth r ≥ t₁: the parent-side
+angular distance between the content point and the anchor's reprojection
+(depth t_c along ω) is
+
+    Δα ≤ |θ_φ−θ_ω| + |ψ_φ(t_c) − ψ_ω(t_c)| + |ψ_φ(r) − ψ_φ(t_c)|
+       < β·(1 + D1 + max(D2, D3)).
+
+(4) *Index distance.* binOf distance ≤ ⌊Δα/β⌋ + 1, so a window half-width
+
+    w ≥ 2 + D1 + max(D2, D3)
+
+guarantees that every same-cell content point at every depth back-projects
+into the consulted window. ∎
+
+(5) *Full ring.* If t₁ ≤ d (attainable at level 0 under extreme boundary
+jitter) the parent can sit beyond the interval start, dir(q→y) is
+unconstrained, and the full ring — every parent bin consulted once — is
+complete by construction.
+
+Notes. (a) The bound is SOUND, not tight: at the certified widths the
+oracle also finds w−1 clean; minimality is not claimed, and the earlier
+"+2-margin" widths — validated only on a 3-point jitter sweep — FAILED
+once the sweep was densified into the near-breakdown band ε ∈ [0.8, 1),
+which is exactly why a finite enumeration cannot substitute for this
+lemma. (b) Certified widths at the 128² defaults: {full ring, 5, 6} at the
+unjittered split for levels 0–2 (+9 at level 3, 256²); worst case across
+the full jitter range {16, 13, 11, 16} → reads/parent 2w+1 up to
+{16, 27, 23, 33}. Width is computed per frame from the active split, so
+the realized cost is jitter-dependent. (c) Oracle status: 9-point jitter
+sweep, 38.1M / 154.2M checks at 128²/256², ZERO violations.
 
 ## 5. Proposition V (renormalized validation — bias analysis)
 
@@ -375,7 +436,7 @@ circle; C₁, C₂ absolute constants — all per
 
 Consequently (anchoring to GRIS, Lin et al. 2022 — full mapping in
 [gris-anchoring.md](gris-anchoring.md)), **for the windowed merge**
-(Prop W with w ≥ δ′_n^max, coverage restored exactly) the per-level merge
+(Prop W′ at the Lemma-M certified width, coverage restored exactly) the per-level merge
 is a GRIS instance whose finite-variance guarantee (Theorem 1) holds via
 the λ-defensive reasonable-distribution bound (Def 5.1), and whose bias
 has **two separable sources, both read as aggregates over the full
