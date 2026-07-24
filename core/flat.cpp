@@ -64,7 +64,10 @@ Image renderFlatReuse(const Scene& sc, int size, const FlatParams& prm,
                     Vec2 d{std::cos(s.omega), std::sin(s.omega)};
                     Hit h;
                     if (rays) rays->cand++;
-                    if (sc.intersect(p, d, 0.0, tmax, h)) {
+                    bool chit = sc.intersect(p, d, 0.0, tmax, h);
+                    // Full-length trace: no interval structure to bound it.
+                    if (rays) rays->candLen += (chit ? h.t : tmax);
+                    if (chit) {
                         s.hasY = true;
                         s.y = h.pos;
                         s.c = sc.shapes[h.shape].emission;
@@ -183,9 +186,13 @@ Image renderFlatReuse(const Scene& sc, int size, const FlatParams& prm,
                                     Hit h;
                                     if (tEnd > 1e-3) {
                                         if (rays) rays->valid++;
-                                        if (sc.intersect(p,
+                                        bool vhit = sc.intersect(p,
                                                 toY * (1.0 / rP),
-                                                1e-3, tEnd, h))
+                                                1e-3, tEnd, h);
+                                        // Full-length shadow segment.
+                                        if (rays) rays->validLen +=
+                                            (vhit ? h.t : tEnd) - 1e-3;
+                                        if (vhit)
                                             continue; // blocked: drop
                                     }
                                 }

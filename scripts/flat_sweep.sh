@@ -6,7 +6,7 @@ set -e
 cd "$(dirname "$0")/.."
 make >/dev/null
 CSV=out/flat_sweep.csv
-echo "scene,mode,radius,k,rho,mcap,seed,leakPct,recPct,mape,frameMape,cand,valid" > $CSV
+echo "scene,mode,radius,k,rho,mcap,seed,leakPct,recPct,mape,frameMape,cand,valid,candLen,validLen" > $CSV
 
 JOBS=()
 for scene in scenes/s1.json scenes/s2.json; do

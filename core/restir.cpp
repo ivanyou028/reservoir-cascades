@@ -111,7 +111,11 @@ Image renderReservoirRC(const Scene& scene, const CascadeCfg& cfg,
                         Vec2 d{std::cos(c.omega), std::sin(c.omega)};
                         Hit h;
                         if (hooks && hooks->rays) hooks->rays->cand++;
-                        if (sc.intersect(p, d, t0, t1, h)) {
+                        bool chit = sc.intersect(p, d, t0, t1, h);
+                        // Interval-bounded trace: marched [t0, min(hit,t1)).
+                        if (hooks && hooks->rays)
+                            hooks->rays->candLen += (chit ? h.t : t1) - t0;
+                        if (chit) {
                             c.hit = true;
                             c.y = h.pos;
                             c.cNear = sc.shapes[h.shape].emission;
@@ -212,6 +216,200 @@ Image renderReservoirRC(const Scene& scene, const CascadeCfg& cfg,
                             }
                             s.c = cd.cNear + acc;
                             s.hasY = false;
+                        } else if (prm.windowAuto || prm.window >= 0) {
+                            // ---- windowed merge-as-RIS (Prop W; the
+                            // theorem-conforming configuration) ----
+                            // Per parent, consult bins {bp−w..bp+w}; each
+                            // consulted sample carries the per-sample
+                            // coverage-balance MIS weight
+                            //   m = β_q / Σ_r β_r·1[covered_r(y)]
+                            // (covered_r(y): y's back-projected bin at r lies
+                            // in r's window — support-determined, a legal
+                            // partition of unity), plus a target-domain
+                            // filter: the reconnected direction must stay in
+                            // the child bin (out-of-bin samples belong to the
+                            // neighbor bin's estimand and are dropped here,
+                            // not deposited un-MIS'd as in the single-bin
+                            // path). Coverage is exact once w ≥ δ'_n.
+                            // Two-stage RIS (within parent, then across
+                            // parents) is distribution-identical to one RIS
+                            // over all 4·(2w+1) candidates.
+                            // The window is a SUPPORT-COMPLETION device, not
+                            // an integration device: the tail stays LOCAL to
+                            // the candidate direction ω (its parent-width
+                            // cell), and the window's only job is to reach
+                            // content whose PARENT-side bin index is shifted
+                            // by depth parallax (±δ'_n around the reprojected
+                            // slot). Reconnected directions are parallax-free
+                            // — content along ω reconnects to ω exactly — so
+                            // the locality filter is exact while the consult
+                            // set widens. This preserves the single-bin
+                            // path's angular resolution (an earlier
+                            // integrate-the-whole-bin variant smeared tails
+                            // to bin granularity: +4.6× S1 leak, measured).
+                            double tRep = std::sqrt(cfgF.intervalStart(n + 1) *
+                                                    cfgF.intervalEnd(n + 1));
+                            Vec2 zRep = p + Vec2{std::cos(cd.omega),
+                                                 std::sin(cd.omega)} * tRep;
+                            PCG32 rng(hashCombine(prm.seed,
+                                  hashCombine((uint64_t)f + 1,
+                                  hashCombine((uint64_t)n + 0x57, k))), 19);
+                            const int Bp = cfg.bins(n + 1);
+                            const int cellB = cfg.binOf(n + 1, cd.omega);
+                            int w = prm.window;
+                            if (prm.windowAuto)
+                                w = cfgF.coverageWindow(n);
+                            // Full-ring consult when the window spans the
+                            // circle (dedup: each bin exactly once).
+                            const bool fullRing = 2 * w + 1 >= Bp;
+                            const int span = fullRing ? Bp : 2 * w + 1;
+
+                            Vec2 qposA[4];
+                            int bpA[4];
+                            for (int q = 0; q < 4; q++) {
+                                qposA[q] = cfg.probePos(n + 1, par.idx[q][0],
+                                                        par.idx[q][1]);
+                                Vec2 toZ = zRep - qposA[q];
+                                bpA[q] = cfg.binOf(n + 1,
+                                                   std::atan2(toZ.y, toZ.x));
+                            }
+                            auto inWindow = [&](int bin, int q) {
+                                if (fullRing) return true;
+                                int d = bin - bpA[q];
+                                d %= Bp; if (d < 0) d += Bp;
+                                return d <= w || Bp - d <= w;
+                            };
+                            // Stage 1: per-parent RIS over the window slots.
+                            struct Winner {
+                                Vec3 c; Vec2 y; bool hasY = false;
+                                double emitLum0 = 0; double U = 0;
+                            } win[4];
+                            for (int q = 0; q < 4; q++) {
+                                double Usum = 0;
+                                for (int jj = 0; jj < span; jj++) {
+                                    int bin = fullRing ? jj
+                                        : (bpA[q] + jj - w) % Bp;
+                                    if (bin < 0) bin += Bp;
+                                    if (hooks && hooks->rays)
+                                        hooks->rays->reads++;
+                                    const Reservoir& rq = R[n + 1][cfg.index(
+                                        n + 1, par.idx[q][0], par.idx[q][1],
+                                        bin)];
+                                    double Jq = 1.0, phi;
+                                    if (rq.s.hasY) {
+                                        Vec2 toY = rq.s.y - p;
+                                        double rP = toY.len();
+                                        if (rP < 1e-9) continue;
+                                        phi = std::atan2(toY.y, toY.x);
+                                        double rQ = (rq.s.y - qposA[q]).len();
+                                        Jq = rQ / rP;
+                                    } else {
+                                        phi = rq.s.omega;
+                                    }
+                                    // Locality filter: the reconnected
+                                    // direction must lie in the candidate's
+                                    // parent-width cell — the tail estimates
+                                    // L(p, ·) locally at ω, exactly as the
+                                    // single-bin path does.
+                                    if (cfg.binOf(n + 1, phi) != cellB)
+                                        continue;
+                                    // Per-sample coverage balance across
+                                    // parents (geometry only, no reads).
+                                    double D = 0;
+                                    for (int r = 0; r < 4; r++) {
+                                        int br;
+                                        if (rq.s.hasY) {
+                                            Vec2 toY = rq.s.y - qposA[r];
+                                            br = cfg.binOf(n + 1,
+                                                std::atan2(toY.y, toY.x));
+                                        } else {
+                                            br = bin; // shared angular grid
+                                        }
+                                        if (inWindow(br, r))
+                                            D += par.beta[r];
+                                    }
+                                    if (!(D > 0)) continue;
+                                    double u = (par.beta[q] / D) *
+                                               phat(rq.s.c, prm.lambda) * Jq *
+                                               rq.W;
+                                    if (!(u > 0)) continue;
+                                    Usum += u;
+                                    if (rng.uniform() * Usum < u) {
+                                        win[q].c = rq.s.c;
+                                        win[q].y = rq.s.y;
+                                        win[q].hasY = rq.s.hasY;
+                                        win[q].emitLum0 = rq.s.emitLum0;
+                                    }
+                                    win[q].U = Usum;
+                                }
+                            }
+                            // Stage 2: across parents, with the same
+                            // ρ-validation + renormalize-before-select
+                            // discipline as the single-bin path (empirical
+                            // extension; the narrowed theorem is ρ=0).
+                            bool doValidate = prm.rho > 0 &&
+                                              (!prm.rhoLevel0Only || n == 0) &&
+                                              rng.uniform() < prm.rho;
+                            double betaValidSum = 0;
+                            bool valid[4];
+                            for (int q = 0; q < 4; q++) {
+                                valid[q] = true;
+                                if (win[q].U > 0 && win[q].hasY &&
+                                    doValidate) {
+                                    Vec2 dir = win[q].y - p;
+                                    double dist = dir.len();
+                                    double tEnd = dist -
+                                        std::fmax(1e-3, 1e-3 * dist);
+                                    double tBeg = cfgF.intervalEnd(n) * 0.999;
+                                    Hit h;
+                                    if (dist > 1e-9 && tEnd > tBeg) {
+                                        if (hooks && hooks->rays)
+                                            hooks->rays->valid++;
+                                        bool vhit = sc.intersect(p,
+                                                dir * (1.0 / dist),
+                                                tBeg, tEnd, h);
+                                        if (hooks && hooks->rays)
+                                            hooks->rays->validLen +=
+                                                (vhit ? h.t : tEnd) - tBeg;
+                                        if (vhit) valid[q] = false;
+                                    }
+                                }
+                                if (valid[q]) betaValidSum += par.beta[q];
+                            }
+                            double w2[4], wsum = 0;
+                            for (int q = 0; q < 4; q++) {
+                                w2[q] = (valid[q] && betaValidSum > 0)
+                                            ? win[q].U / betaValidSum
+                                            : 0.0;
+                                if (!(w2[q] > 0)) w2[q] = 0;
+                                wsum += w2[q];
+                            }
+                            Vec3 tail;
+                            Vec2 tailY;
+                            bool tailHasY = false;
+                            if (wsum > 0) {
+                                double u = rng.uniform() * wsum;
+                                int sel = 3;
+                                double run = 0;
+                                for (int q = 0; q < 4; q++) {
+                                    run += w2[q];
+                                    if (u < run) { sel = q; break; }
+                                }
+                                // Local-mean semantics: same normalization
+                                // as the single-bin path (the candidate's
+                                // own stratification over the child bin
+                                // delivers the bin mean; no width factor).
+                                double Wsel = wsum /
+                                    phat(win[sel].c, prm.lambda);
+                                tail = win[sel].c * Wsel;
+                                tailY = win[sel].y;
+                                tailHasY = win[sel].hasY;
+                                s.emitLum0 = win[sel].emitLum0;
+                            }
+                            s.c = cd.cNear + tail;
+                            s.cRef = s.c;
+                            s.y = tailY;
+                            s.hasY = tailHasY;
                         } else {
                             // ---- merge-as-RIS over the 4 parents (§3.3) ----
                             // Target is p's own field: each parent sample is
@@ -249,6 +447,8 @@ Image renderReservoirRC(const Scene& scene, const CascadeCfg& cfg,
                             bool valid[4];
                             const Reservoir* pr[4];
                             for (int q = 0; q < 4; q++) {
+                                if (hooks && hooks->rays)
+                                    hooks->rays->reads++;
                                 Vec2 qpos0 = cfg.probePos(n + 1, par.idx[q][0],
                                                           par.idx[q][1]);
                                 Vec2 toZ = zRep - qpos0;
@@ -280,9 +480,14 @@ Image renderReservoirRC(const Scene& scene, const CascadeCfg& cfg,
                                         if (dist > 1e-9 && tEnd > tBeg) {
                                             if (hooks && hooks->rays)
                                                 hooks->rays->valid++;
-                                            if (sc.intersect(p,
+                                            bool vhit = sc.intersect(p,
                                                     dir * (1.0 / dist),
-                                                    tBeg, tEnd, h))
+                                                    tBeg, tEnd, h);
+                                            // Interval-bounded shadow segment.
+                                            if (hooks && hooks->rays)
+                                                hooks->rays->validLen +=
+                                                    (vhit ? h.t : tEnd) - tBeg;
+                                            if (vhit)
                                                 valid[q] = false;
                                         }
                                     }

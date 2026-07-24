@@ -391,6 +391,51 @@ of every deviation).
 - Honesty note: equal ray count ≠ equal work (flat rays are full-length);
   2D analytic scenes hide that gap — stated explicitly in the paper.
 
+## E17 — Windowed lookup (Prop W′) implemented + certified (2026-07-23, erratum response)
+
+- Motivation: after the coverage-fraction erratum the soundness theorem is
+  stated for the windowed configuration — which had never been implemented.
+  "The theorem validates a method that was never run" was the largest
+  remaining objection (external review concurred on priority).
+- Implementation: new branch in restir.cpp Full mode; `--window W` fixed
+  half-width / `--window-auto` per-level certified width from
+  `CascadeCfg::coverageWindow` (shared by code and oracle — no drift);
+  `RayCounts.reads` counts amplification. Off by default; bit-exact
+  regression green throughout.
+- Three design iterations, each falsified by the oracle within minutes:
+  v1 integrated the whole child bin without the bin-width ratio (26× energy
+  explosion); v2 added the 0.25 factor but deposited bin-mean tails,
+  destroying tail angular resolution (4.6× S1 leak at ρ=0); v3 FINAL —
+  the window is a SUPPORT-COMPLETION device, not an integration device:
+  the tail stays local to the candidate's parent-width cell (reconnected
+  directions are parallax-free; parallax lives only in the parent-side bin
+  index), the window only recovers depth-shifted content.
+- **Coverage oracle** (`rc coverage`, pure geometric enumeration: probe
+  positions across a parent cell, anchor/content directions at cell edges,
+  depths from the interval start to 1e5×, boundary-jitter extremes):
+  the first run BIT — w = ceil(δ') leaves violations (intra-cell offset +
+  discrete rounding); margin +2 still failed level 0 → root cause: at
+  extreme jitter ε₀ = 1.41 > 1, the geometry is non-paraxial and NO finite
+  window suffices → escalate to full-ring consult (dedup). Final:
+  **zero violations over 12.7M (128²) / 51.4M (256²) checks; the negative
+  control (w−1) violates — the test has teeth.** Certified widths
+  w = {16 (full ring), 5, 8, 13}, reads/parent {16, 11, 17, 27} (~3–27×):
+  steeper than pre-oracle estimates, reported as-is.
+- **ρ-separation test** (128², 64 independent frames averaged,
+  no temporal, seed 1; single-bin → windowed-auto):
+  S1 leak% 31.4→37.3 (ρ=0) / 10.5→12.0 (ρ=.5) / **0.01→0.15 (ρ=1: the
+  windowed increment is eliminated by validation)**; S2 rec%
+  102.9→98.9 (closer to 100) with MAPE better at every ρ (1.86 vs 2.12
+  at ρ=0; banding config 1.53 vs 2.05, −25%). The two error sources
+  (coverage vs visibility) separate cleanly, as the two-source theorem
+  predicts. Widening beyond the certified width leaves results
+  bit-identical (filtered slots contribute nothing) — direct evidence of
+  the support-completion semantics.
+- Naming: all E17 metrics are averages over 64 INDEPENDENT frames
+  (no temporal reuse) — not "single-frame quality".
+- Remaining: multi-seed × ρ × temporal × worst-case-geometry sweep;
+  paper table with a proved-vs-measured split.
+
 ## Go/No-Go tracking (proposal §9; decided at end of M2)
 
 - [x] GO-1 S1 leak < 20% of vanilla: multi-seed **18.0%±1.9%** at ρ=0.25

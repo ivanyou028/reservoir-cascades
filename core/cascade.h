@@ -78,6 +78,28 @@ struct CascadeCfg {
         return p;
     }
 
+    // Coverage-complete window half-width for the level-n windowed merge
+    // (Prop W, conditional-cell form): the reprojection residual
+    // δ'_n = δ_n·(1−1/g) in parent-bin units, plus `margin` for the
+    // intra-cell anchor-to-content offset (content φ and anchor ω share a
+    // parent-width cell but can differ by up to one bin) and discrete
+    // boundary rounding. The default margin is validated by the `coverage`
+    // oracle (zero violations required); call on the JITTERED cfg so the
+    // width tracks the active interval split.
+    int coverageWindow(int n, double margin = 2.0) const {
+        double t1 = intervalStart(n + 1), t2 = intervalEnd(n + 1);
+        double eps = std::sqrt(2.0) * spacing(n + 1) / t1;
+        // Non-paraxial regime (parent displacement ≥ interval start, hit at
+        // extreme boundary jitter on level 0): dir(q→y) is unconstrained and
+        // no finite window can certify coverage — escalate to the FULL RING
+        // (every parent bin consulted once; coverage exact by construction).
+        if (eps >= 1.0) return bins(n + 1);
+        double delta = eps * bins(n + 1) / TWO_PI;
+        double g = std::sqrt(t2 / t1);
+        int w = (int)std::ceil(delta * (1.0 - 1.0 / g) + margin - 1e-9);
+        return w < 1 ? 1 : w;
+    }
+
     size_t entryCount(int n) const {
         return (size_t)gridN(n) * gridN(n) * bins(n);
     }

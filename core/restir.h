@@ -53,6 +53,22 @@ struct RParams {
     // data-independent ⇒ unbiased. Bounds effective temporal reuse to the
     // block length.
     int bjitterBlock = 8;
+    // Windowed parent-bin lookup (Prop W): consult bins {bp−w..bp+w} per
+    // parent with the per-sample coverage-balance MIS
+    //   m = β_q / Σ_r β_r·1[sample's back-projected bin ∈ r's window]
+    // and a target-domain filter (reconnected direction must stay in the
+    // child bin). This is the theorem-conforming configuration: coverage is
+    // exact once w ≥ δ'_n (the reprojection residual in parent-bin units).
+    //   window < 0 : legacy single-bin reprojected lookup (default; the
+    //                cheap approximation, coverage residual measured E3/E4);
+    //   window ≥ 0 : fixed radius w at every level;
+    //   windowAuto : per-level theorem width w_n = ceil(δ'_n^max), computed
+    //                from the (jittered) geometry; overrides `window`.
+    // Validation (ρ>0) applies at the per-parent winner as before — the
+    // narrowed theorem covers windowed + single-frame + ρ=0; ρ>0 windowed is
+    // the same empirical extension as single-bin.
+    int window = -1;
+    bool windowAuto = false;
     // Image = average of gathers over frames [burnIn, frames);
     // burnIn = frames/2 when temporal, 0 otherwise.
 };
@@ -67,9 +83,21 @@ struct TemporalProbe {
 // Ray-cost accounting: candidate rays are one per reservoir per frame in
 // every mode (vanilla, stochastic, full); validation shadow rays are the
 // only extra cost of ρ > 0. Feeds the paper's equal-cost statement.
+//
+// candLen/validLen accumulate the *traced distance* (pixels) of each ray —
+// the span actually marched: distance-to-hit for a hit, the searched extent
+// for a miss. Equal ray *count* (cand/valid) is not equal *work*: cascade
+// candidate rays are interval-bounded ([t_n, t_{n+1})), so their traced
+// length shrinks with level, while the flat control's are full-length
+// ([0, 4·size)). These counters turn "equal count ≠ equal work" into numbers.
 struct RayCounts {
     unsigned long long cand = 0;   // Phase-1 interval traces
     unsigned long long valid = 0;  // ρ-validation shadow tests
+    double candLen = 0;            // Σ traced distance of candidate rays (px)
+    double validLen = 0;           // Σ traced distance of validation rays (px)
+    // Parent-reservoir consults per merge: 4 for the single-bin lookup,
+    // 4·(2w+1) windowed — the read-amplification cost of exact coverage.
+    unsigned long long reads = 0;
 };
 
 struct RenderHooks {

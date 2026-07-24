@@ -134,31 +134,65 @@ a ×2-per-axis direction schedule makes the shift Θ(1) in bin units and
 removes the obstruction structurally — it is specific to one angular
 dimension.
 
-### Proposition W (windowed lookup restores coverage — the LEGAL renormalization)
+### Proposition W′ (windowed lookup, conditional-cell form — the LEGAL renormalization)
 
-Consult, per parent q, the bins {bp_q−w, …, bp_q+w}, where
-bp_q := binOf(n+1, dir(q→z)) is the reprojected parent bin of Prop R. Say parent q *covers*
-direction y iff b*_q(y) := binOf(n+1, dir(q→y)) lies in q's window — a
-purely geometric, deterministic predicate, computable at merge time from the
-candidate's own y. Use MIS weights
+**[Restated 2026-07-23d to match the implementation exactly (external-review
+gate); the earlier child-bin phrasing is superseded. Implemented in
+restir.cpp (`--window`/`--window-auto`); certified by the `rc coverage`
+oracle.]**
+
+Structure: the outer candidate draws ω uniform on the child bin Ω_b;
+conditional on ω, the windowed merge targets the tail restricted to ω's
+**parent-width cell** C(ω) (the level-(n+1) bin containing ω). The child-bin
+estimand is recovered by marginalizing over ω — the candidate's own
+stratification — so the merge's target domain is C(ω), not Ω_b.
+
+Per parent q, consult the bins {bp_q(ω)−w, …, bp_q(ω)+w} (bp_q = the
+reprojected bin of Prop R, anchored at the candidate's ω). Accept a stored
+sample y only if its RECONNECTED direction dir(p→y) lies in C(ω) — the
+locality filter; reconnected directions are parallax-free (content along ω
+reconnects to ω exactly; parallax lives only in the parent-side bin index),
+so the filter is exact while the consult set widens. Say parent r *covers*
+y iff b*_r(y) := binOf(n+1, dir(r→y)) lies in r's window; use MIS weights
 
     m_q(y) = β_q·1[covered_q(y)] / Σ_r β_r·1[covered_r(y)].
 
-(i) These are a **legal GRIS Eq 17/20 partition of unity**: the covering set
-is support-determined and per-y — exactly the "sum over realizing
-techniques" restriction — unlike the validation-survivor renormalization
-(Prop V), which is visibility-determined and therefore NOT certifiable this
-way. The contrast is the sharpest way to state the difference: *coverage*
+(i) These are a **legal GRIS Eq 17/20 partition of unity** over the
+realizing techniques for C(ω): the covering set is support-determined and
+per-y — unlike the validation-survivor renormalization (Prop V), which is
+visibility-determined and NOT certifiable this way. *Coverage*
 renormalization is legal because non-covering ⇒ non-realizing; *visibility*
 renormalization is not, because occlusion ≠ non-realization.
-(ii) **Coverage restored ⟺ w ≥ δ'_n^max** (Prop R residual): then
-covered_q ≡ 1 for all q, m_q = β_q, and supp Y = supp p̂ — the Eq 15
-violation of Prop C closes and the −∫_A L deficit vanishes.
-(iii) Cost: (2w+1) reservoir *reads* per parent, no extra rays. With our
-defaults, Prop R keeps δ' ≲ 2 bins through n ≈ 3–4 (our prototypes'
-depths), so w = 1–2 suffices there at 3–5× read cost; beyond, w must grow
-∝ 2ⁿ. Partial windows (w < δ'_n^max) remain unbiased on the covered
-set with the residual deficit shrunk to the still-uncovered sliver.
+(ii) **Coverage is restored — supp Y ⊇ C(ω)'s content at every depth —
+once w ≥ δ'_n + intra-cell margin.** The margin (content φ and anchor ω
+share C(ω) but differ by up to one bin, plus discrete boundary rounding)
+is +2 at our defaults; in the non-paraxial regime ε_n ≥ 1 (level 0 at
+extreme boundary jitter: parent displacement exceeds the interval start,
+so dir(q→y) is unconstrained) NO finite window suffices and the width
+escalates to the **full ring** (every parent bin once — coverage exact by
+construction). Certified widths are geometry-computed
+(`CascadeCfg::coverageWindow`) and validated by a direct enumeration
+oracle (`rc coverage`): **zero violations over 12.7M/51.4M checks at
+128²/256² including jitter extremes, with the negative control (w−1)
+violating — the test has teeth.** MAPE improvements cannot certify support
+completeness; this enumeration does.
+(iii) Cost, honestly split into two modes:
+  - **Certified mode** (`--window-auto`, the theorem configuration):
+    per-level widths at the 128² defaults w = {16 (full ring), 5, 8, 13}
+    → reads/parent {16, 11, 17, 27} ≈ 3–27× the single-bin lookup's; no
+    extra rays. This is the price of exact coverage after the oracle's
+    verdict — steeper than the pre-oracle estimate.
+  - **Calibration mode** (small fixed w = 1–2, 3–5× reads): matches the
+    E3-measured typical content shift, UNCERTIFIED — worst-case content
+    (bin-boundary + interval-start) escapes it (oracle: violations at
+    w−1). Partial windows remain unbiased on the covered set with the
+    residual deficit shrunk to the still-uncovered sliver; they belong in
+    the measured column, never beside the guarantee.
+Empirically, widening beyond the certified width is value-neutral
+(filtered slots contribute nothing — support-completion semantics), so
+certified-vs-calibration differ in cost and worst-case guarantee, not in
+typical-scene output (lab log E17: identical S2 results under both
+widths).
 
 ## 5. Proposition V (renormalized validation — bias analysis)
 

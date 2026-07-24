@@ -101,6 +101,8 @@ static int eval(int argc, char** argv) {
     prm.mcap0 = std::atoi(arg(argc, argv, "--mcap0", "8").c_str());
     prm.boundaryJitter = !flag(argc, argv, "--no-bjitter");
     prm.bjitterBlock = std::atoi(arg(argc, argv, "--bjitter-block", "8").c_str());
+    prm.window = std::atoi(arg(argc, argv, "--window", "-1").c_str());
+    prm.windowAuto = flag(argc, argv, "--window-auto");
     bool stoch = flag(argc, argv, "--stoch");
     RayCounts rays;
     RenderHooks rayHooks;
@@ -112,6 +114,16 @@ static int eval(int argc, char** argv) {
                 (double)rays.cand / prm.frames,
                 (double)rays.valid / prm.frames,
                 rays.cand ? 100.0 * rays.valid / rays.cand : 0.0);
+    std::printf("  parent reads/frame: %.0f (window=%s)\n",
+                (double)rays.reads / prm.frames,
+                prm.windowAuto ? "auto" :
+                (prm.window >= 0 ? arg(argc, argv, "--window", "-1").c_str()
+                                 : "off"));
+    std::printf("  traced px/frame: candidate=%.0f validation=%.0f "
+                "(mean len: cand=%.2f valid=%.2f px/ray)\n",
+                rays.candLen / prm.frames, rays.validLen / prm.frames,
+                rays.cand ? rays.candLen / rays.cand : 0.0,
+                rays.valid ? rays.validLen / rays.valid : 0.0);
     std::snprintf(buf, sizeof buf, "%s/%s_%d_full.ppm", outdir.c_str(),
                   sc.name.c_str(), size);
     full.writePPM(buf);
@@ -266,7 +278,10 @@ static int s3(int argc, char** argv) {
 
 // compare (§6): flat world-space reuse vs. cascade at identical candidate
 // budget, through one metric pipeline. Emits a CSV row per run:
-//   scene,mode,radius,k,rho,mcap,seed,leakPct,recPct,mape,frameMape,cand,valid
+//   scene,mode,radius,k,rho,mcap,seed,leakPct,recPct,mape,frameMape,cand,valid,
+//   candLen,validLen
+// candLen/validLen: total traced distance (px) — equal ray count is not equal
+// work (cascade interval-bounded vs. flat full-length; see RayCounts).
 // leakPct: shadow-mask excess energy as % of vanilla RC's excess (S1);
 // recPct: room-mask energy as % of reference (S2); frameMape: mean per-frame
 // (pre-averaging) MAPE over the post-burn-in window — the single-frame
@@ -328,6 +343,8 @@ static int compare(int argc, char** argv) {
         prm.seed = seed;
         prm.temporal = fp.temporal;
         prm.rho = fp.rho;
+        prm.window = std::atoi(arg(argc, argv, "--window", "-1").c_str());
+        prm.windowAuto = flag(argc, argv, "--window-auto");
         RenderHooks hooks;
         hooks.rays = &rays;
         hooks.onFrame = onFrame;
@@ -352,32 +369,136 @@ static int compare(int argc, char** argv) {
 
     std::printf("[compare] %s mode=%s r=%.0f k=%d rho=%.3f mcap=%d seed=%llu "
                 "bins=%d: leak%%=%.2f rec%%=%.2f mape=%.3f fmape=%.3f "
-                "rays: cand=%.0f/f valid=%.0f/f (+%.1f%%)\n",
+                "rays: cand=%.0f/f valid=%.0f/f (+%.1f%%) "
+                "traced px/f: cand=%.0f valid=%.0f (mean cand=%.2f px/ray)\n",
                 sc.name.c_str(), mode.c_str(), fp.radius, fp.k, fp.rho,
                 fp.mcap, (unsigned long long)seed, fp.bins,
                 leakPct, recPct, mapeAll, fMape,
                 (double)rays.cand / frames, (double)rays.valid / frames,
-                rays.cand ? 100.0 * rays.valid / rays.cand : 0.0);
+                rays.cand ? 100.0 * rays.valid / rays.cand : 0.0,
+                rays.candLen / frames, rays.validLen / frames,
+                rays.cand ? rays.candLen / rays.cand : 0.0);
 
     if (!csvPath.empty()) {
         FILE* csv = std::fopen(csvPath.c_str(), "a");
         if (csv) {
             std::fprintf(csv, "%s,%s,%.0f,%d,%.3f,%d,%llu,%.4f,%.4f,%.4f,"
-                         "%.4f,%llu,%llu\n",
+                         "%.4f,%llu,%llu,%.1f,%.1f\n",
                          sc.name.c_str(), mode.c_str(), fp.radius, fp.k,
                          fp.rho, fp.mcap, (unsigned long long)seed, leakPct,
                          recPct, mapeAll, fMape,
                          (unsigned long long)rays.cand,
-                         (unsigned long long)rays.valid);
+                         (unsigned long long)rays.valid,
+                         rays.candLen, rays.validLen);
             std::fclose(csv);
         }
     }
     return 0;
 }
 
+// coverage: direct support-completeness oracle for the windowed lookup.
+// Pure geometry, no rendering: for every level, probe positions spanning a
+// parent cell (worst displacement at corners), anchor directions ω and
+// content directions φ at cell edges/center (worst intra-cell separation),
+// depths from the interval start (worst reprojection residual) to far field,
+// and boundary-jitter extremes, check that the content's parent-side bin
+//   b*_q(y) = binOf(n+1, dir(q→y))
+// lies within the consulted window [bp_q − w, bp_q + w] anchored at the
+// candidate's reprojection. Reports violations for the auto width w_n and
+// for w_n − 1 (negative control: violations MUST appear there, proving the
+// test has teeth). MAPE improvements cannot certify support completeness;
+// this enumeration can.
+static int coverage(int argc, char** argv) {
+    int size = std::atoi(arg(argc, argv, "--size", "128").c_str());
+    int wOverride = std::atoi(arg(argc, argv, "--window", "-999").c_str());
+    CascadeCfg cfg = CascadeCfg::make(size);
+    double jf[3] = {std::pow(4.0, -0.5), 1.0, std::pow(4.0, 0.5)};
+    long long totalViol = 0, totalChecks = 0;
+    std::printf("[coverage] size=%d levels=%d (w from --window-auto formula"
+                "%s)\n", size, cfg.levels,
+                wOverride != -999 ? " OVERRIDDEN" : "");
+    for (int n = 0; n + 1 < cfg.levels; n++) {
+        long long viol[2] = {0, 0}, checks = 0;
+        int wAutoMax = 0;
+        for (int ji = 0; ji < 3; ji++) {
+            CascadeCfg cfgF = cfg;
+            cfgF.t0 = cfg.t0 * jf[ji];
+            const int Bp = cfg.bins(n + 1);
+            double t1 = cfgF.intervalStart(n + 1);
+            double t2 = cfgF.intervalEnd(n + 1);
+            double g = std::sqrt(t2 / t1);
+            int w = cfgF.coverageWindow(n);
+            if (wOverride != -999) w = wOverride;
+            // w ≥ Bp/2 ⇒ full ring: circular distance can never exceed it.
+            if (w > wAutoMax) wAutoMax = w;
+            double tRep = std::sqrt(t1 * t2);
+            // Probe positions: 5×5 sub-grid across one parent cell in the
+            // grid interior, plus one near the border (parent clamping folds
+            // weights there — worst displacement geometry differs).
+            int G = cfg.gridN(n);
+            int pis[2] = {G / 2, 1};
+            for (int pi = 0; pi < 2; pi++) {
+                int i0 = pis[pi], j0 = pis[pi];
+                for (int su = 0; su < 5; su++)
+                    for (int sv = 0; sv < 5; sv++) {
+                        Vec2 p = cfg.probePos(n, i0, j0);
+                        p.x += (su / 4.0 - 0.5) * cfg.spacing(n) * 0.999;
+                        p.y += (sv / 4.0 - 0.5) * cfg.spacing(n) * 0.999;
+                        CascadeCfg::Parents par = cfg.parentsOf(n, p);
+                        // Anchor/content directions: cell edges + center of
+                        // every level-(n+1) cell.
+                        double us[3] = {1e-6, 0.5, 1.0 - 1e-6};
+                        for (int cb = 0; cb < Bp; cb += 1) {
+                            for (int ua = 0; ua < 3; ua++)
+                                for (int uc = 0; uc < 3; uc++) {
+                                    double om = TWO_PI * (cb + us[ua]) / Bp;
+                                    double ph = TWO_PI * (cb + us[uc]) / Bp;
+                                    Vec2 zRep = p + Vec2{std::cos(om),
+                                                         std::sin(om)} * tRep;
+                                    double rs[7] = {1.0, 1.02, 1.2, g,
+                                                    2 * g, 16.0, 1e5};
+                                    for (int ri = 0; ri < 7; ri++) {
+                                        double r = t1 * rs[ri];
+                                        Vec2 y = p + Vec2{std::cos(ph),
+                                                          std::sin(ph)} * r;
+                                        for (int q = 0; q < 4; q++) {
+                                            Vec2 qp = cfg.probePos(n + 1,
+                                                par.idx[q][0], par.idx[q][1]);
+                                            Vec2 tz = zRep - qp;
+                                            Vec2 ty = y - qp;
+                                            int bp = cfg.binOf(n + 1,
+                                                std::atan2(tz.y, tz.x));
+                                            int bs = cfg.binOf(n + 1,
+                                                std::atan2(ty.y, ty.x));
+                                            int d = bs - bp;
+                                            d %= Bp; if (d < 0) d += Bp;
+                                            int cd = d <= Bp - d ? d : Bp - d;
+                                            checks++;
+                                            if (cd > w) viol[0]++;
+                                            if (cd > w - 1) viol[1]++;
+                                        }
+                                    }
+                                }
+                        }
+                    }
+            }
+        }
+        totalViol += viol[0];
+        totalChecks += checks;
+        std::printf("  L%d: w=%d checks=%lld violations=%lld (w-1: %lld)"
+                    " %s\n", n, wAutoMax, checks, viol[0], viol[1],
+                    viol[0] == 0 ? "OK" : "FAIL");
+    }
+    std::printf("[coverage] total: %lld/%lld violations %s\n", totalViol,
+                totalChecks, totalViol == 0 ? "— support complete"
+                                            : "— WIDTH INSUFFICIENT");
+    return totalViol == 0 ? 0 : 1;
+}
+
 int main(int argc, char** argv) {
     if (argc < 2) {
-        std::fprintf(stderr, "usage: rc selftest|eval|s3|compare [options]\n");
+        std::fprintf(stderr, "usage: rc selftest|eval|s3|compare|coverage "
+                             "[options]\n");
         return 2;
     }
     if (!std::strcmp(argv[1], "selftest")) {
@@ -389,6 +510,7 @@ int main(int argc, char** argv) {
     if (!std::strcmp(argv[1], "eval")) return eval(argc, argv);
     if (!std::strcmp(argv[1], "s3")) return s3(argc, argv);
     if (!std::strcmp(argv[1], "compare")) return compare(argc, argv);
+    if (!std::strcmp(argv[1], "coverage")) return coverage(argc, argv);
     std::fprintf(stderr, "unknown command: %s\n", argv[1]);
     return 2;
 }
